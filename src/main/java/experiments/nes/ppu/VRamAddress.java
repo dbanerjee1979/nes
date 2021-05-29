@@ -100,7 +100,7 @@ public class VRamAddress {
     }
 
     public byte getBackgroundPalette(byte attributeValue) {
-        // each quadrant consists of two tiles:
+        // each quadrant consists of two tiles, packed into attribute value:
         // 7 6  - bottom right - y = 1, x = 1   shift = 6
         // 5 4  - bottom left  - y = 1, x = 0   shift = 4
         // 3 2  - top right    - y = 0, x = 1   shift = 2
