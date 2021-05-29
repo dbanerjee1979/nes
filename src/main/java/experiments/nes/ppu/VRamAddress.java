@@ -62,7 +62,7 @@ public class VRamAddress {
     public void incrementX() {
         int x = getTileX();
         if (x == NUM_TILES_ROW - 1) {
-            zeroX();
+            value &= ~TILE_X_MASK;
             switchHorizontalNameTable();
         } else {
             value++;
@@ -118,10 +118,6 @@ public class VRamAddress {
 
     public short getTileAddressPlane2(int tableStart, byte nameTableEntry) {
         return (short) (getTileAddress(tableStart, nameTableEntry) | TILE_PLANE_2_MASK | getFineY());
-    }
-
-    private void zeroX() {
-        value &= ~TILE_X_MASK;
     }
 
     private void switchHorizontalNameTable() {
