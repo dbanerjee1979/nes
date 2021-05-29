@@ -85,6 +85,7 @@ public class VRamAddress {
                 value &= ~TILE_Y_MASK;
             } else {
                 y++;
+                value &= ~TILE_Y_MASK;
                 value |= (y << TILE_COORDINATE_BITS) & TILE_Y_MASK;
             }
         }
