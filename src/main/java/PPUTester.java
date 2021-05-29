@@ -11,19 +11,19 @@ public class PPUTester {
         PPU ppu = new PPU(new FileBus("/ppu_memory.bin", 0x4000), new NesPalette());
         ppu.setBackgroundPatternTable(1);
 
-        for (int i = 0; i < 341; i++) {
+        for (int i = 0; i <= 340; i++) {
             ppu.cycle();
         }
 
         for (int scanline = 0; scanline < 239; scanline++) {
-            for (int i = 0; i < 341; i++) {
+            for (int i = 0; i <= 340; i++) {
                 ppu.cycle();
             }
         }
 
         JFrame frame = new JFrame();
         frame.setContentPane(createImagePanel(ppu.getFrameBuffer(), 512, 480));
-        frame.setSize(512, 480);
+        frame.pack();
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setVisible(true);
     }
