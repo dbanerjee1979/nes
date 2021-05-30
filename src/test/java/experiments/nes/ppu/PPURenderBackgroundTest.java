@@ -174,6 +174,8 @@ public class PPURenderBackgroundTest {
             reset(bus);
         }
 
+        // @formatter:off
+        // y = 0
         assertArrayEquals(
             IntStream.of(
                 /* attribute = 00 00
@@ -260,6 +262,7 @@ public class PPURenderBackgroundTest {
             ).map(entry -> palette.getRGB((byte) entry)).toArray(),
             IntStream.range(0, 256).map(x -> frameBuffer.getRGB(x, 0) & 0xFFFFFF).toArray()
         );
+        // @formatter:on
     }
 
     @Test
