@@ -174,6 +174,7 @@ public class PPURenderBackgroundTest {
             reset(bus);
         }
 
+        // Offset: 0x2000
         // @formatter:off
         // y = 0
         assertArrayEquals(
@@ -277,6 +278,7 @@ public class PPURenderBackgroundTest {
             }
         }
 
+        // Offset: 0x2000
         // @formatter:off
         // y = 0
         assertArrayEquals(
@@ -1013,6 +1015,7 @@ public class PPURenderBackgroundTest {
             this.ppu.cycle();
         }
 
+        // Offset: 0x2020
         // @formatter:off
         // y = 0
         assertArrayEquals(
