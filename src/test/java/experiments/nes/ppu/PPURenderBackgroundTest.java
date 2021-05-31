@@ -73,11 +73,32 @@ public class PPURenderBackgroundTest {
         frameCount = 0;
     }
 
+    private void runPreRenderScanline() {
+        for (int cycle = 0; cycle <= 340; cycle++) {
+            this.ppu.cycle();
+            assertFalse(this.ppu.isVBlank());
+        }
+    }
+
+    private void runRenderAndPostRenderScanlines(int startingScanline) {
+        for (int scanline = startingScanline; scanline <= 260; scanline++) {
+            for (int cycle = 0; cycle <= 340; cycle++) {
+                this.ppu.cycle();
+            }
+        }
+    }
+
     @Test
     public void should_read_memory_in_pre_render_scanline_without_rendering() {
         // cycle 0: idle cycle
         this.ppu.cycle();
         verify(bus, never()).read(anyShort());
+        // VBlank isn't cleared until cycle 1
+        if (frameCount == 0) {
+            assertFalse(this.ppu.isVBlank());
+        } else {
+            assertTrue(this.ppu.isVBlank());
+        }
 
         // cycles 1 - 256: read pixel data (but don't render)
         for (int cycle = 1, tile = 0; cycle <= 256; cycle += 8, tile++) {
@@ -161,11 +182,13 @@ public class PPURenderBackgroundTest {
         }
         reset(bus);
 
-        // cycle 0: idle cycle
-        this.ppu.cycle();
-        verify(bus, never()).read(anyShort());
+        // cycle 0: idle cycle (only executed on even frames)
+        if (frameCount % 2 == 0) {
+            this.ppu.cycle();
+            verify(bus, never()).read(anyShort());
+        }
 
-        // cycles 1 - 256: read pixel data (but don't render)
+        // cycles 1 - 256: read pixel data (but render bit-by-bit from tiles loaded in previous cycles)
         // first two tiles were loaded at the end of the pre-render scanline
         Iterator<Short> nameTableAddrIter = nametableAddresses.subList(2, nametableAddresses.size()).iterator();
         for (int cycle = 1, tile = 2; cycle <= 256; cycle += 8, tile++) {
@@ -186,6 +209,11 @@ public class PPURenderBackgroundTest {
             verify(bus, description(String.format("Invalid tile plane 2 read for tile %d at cycle %d", tile, cycle)))
                 .read(plane2Addrs[tile]);
             reset(bus);
+        }
+
+        // Cycle through the rest of the scanline
+        for (int cycle = 257; cycle <= 340; cycle++) {
+            this.ppu.cycle();
         }
 
         // Tile Offset: 0x2000
@@ -1341,16 +1369,10 @@ public class PPURenderBackgroundTest {
     @Test
     public void should_do_nothing_from_scanlines_240_to_260_except_set_the_vblank_flag() {
         // Run pre-render scanline
-        for (int cycle = 0; cycle <= 340; cycle++) {
-            this.ppu.cycle();
-            assertFalse(this.ppu.isVBlank());
-        }
+        runPreRenderScanline();
         // Run render scanlines
         for (int scanline = 0; scanline <= 239; scanline++) {
-            for (int cycle = 0; cycle <= 340; cycle++) {
-                this.ppu.cycle();
-                assertFalse(this.ppu.isVBlank());
-            }
+            runPreRenderScanline();
         }
         reset(bus);
 
@@ -1376,30 +1398,34 @@ public class PPURenderBackgroundTest {
     @Test
     public void should_clear_vblank_flag_and_start_pre_render_scanline_again() {
         // Run pre-render scanline
-        for (int cycle = 0; cycle <= 340; cycle++) {
-            this.ppu.cycle();
-            assertFalse(this.ppu.isVBlank());
-        }
+        runPreRenderScanline();
         // Run render and post-render scanlines
-        for (int scanline = 0; scanline <= 260; scanline++) {
-            for (int cycle = 0; cycle <= 340; cycle++) {
-                this.ppu.cycle();
-                if (scanline <= 240 || scanline == 241 && cycle == 0) {
-                    assertFalse(
-                        String.format("Expecting vblank to be clear at scanline=%d, cycle=%d", scanline, cycle),
-                        this.ppu.isVBlank()
-                    );
-                } else {
-                    assertTrue(
-                        String.format("Expecting vblank to be set at scanline=%d, cycle=%d", scanline, cycle),
-                        this.ppu.isVBlank()
-                    );
-                }
-            }
-        }
+        runRenderAndPostRenderScanlines(0);
         reset(bus);
 
         frameCount++;
         should_read_memory_in_pre_render_scanline_without_rendering();
+    }
+
+    @Test
+    public void should_skip_cycle_zero_on_odd_frames() {
+        // Frame 0 - even
+        // Run pre-render scanline
+        runPreRenderScanline();
+        // Run render and post-render scanlines
+        runRenderAndPostRenderScanlines(0);
+        reset(bus);
+
+        // Frame 1 - odd
+        frameCount++;
+        should_render_first_scanline_after_pre_render_scanline();
+        // Run render and post-render scanlines
+        runRenderAndPostRenderScanlines(1);
+
+        // Frame 2 - even
+        frameCount++;
+        should_render_first_scanline_after_pre_render_scanline();
+        // Run render and post-render scanlines
+        runRenderAndPostRenderScanlines(1);
     }
 }
