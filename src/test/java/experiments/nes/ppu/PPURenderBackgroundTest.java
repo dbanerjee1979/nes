@@ -16,8 +16,7 @@ import java.util.stream.IntStream;
 
 import static experiments.nes.ppu.VRamAddress.ATTR_TABLE_START;
 import static experiments.nes.ppu.VRamAddress.NAME_TABLE_START;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.anyShort;
 import static org.mockito.Mockito.*;
 
@@ -1322,5 +1321,38 @@ public class PPURenderBackgroundTest {
             IntStream.range(0, 256).map(x -> frameBuffer.getRGB(x, 32) & 0xFFFFFF).toArray()
         );
         // @formatter:on
+    }
+
+    @Test
+    public void should_do_nothing_from_scanlines_240_to_260_except_set_the_vblank_flag() {
+        // Run pre-render scanline
+        for (int cycle = 0; cycle <= 340; cycle++) {
+            this.ppu.cycle();
+        }
+        for (int scanline = 0; scanline <= 239; scanline++) {
+            for (int cycle = 0; cycle <= 340; cycle++) {
+                this.ppu.cycle();
+                assertFalse(this.ppu.isVBlank());
+            }
+        }
+        reset(bus);
+
+        for (int scanline = 240; scanline <= 260; scanline++) {
+            for (int cycle = 0; cycle <= 340; cycle++) {
+                this.ppu.cycle();
+                if (scanline == 240 || scanline == 241 && cycle == 0) {
+                    assertFalse(
+                        String.format("Expecting vblank to be clear at scanline=%d, cycle=%d", scanline, cycle),
+                        this.ppu.isVBlank()
+                    );
+                } else {
+                    assertTrue(
+                        String.format("Expecting vblank to be set at scanline=%d, cycle=%d", scanline, cycle),
+                        this.ppu.isVBlank()
+                    );
+                }
+                verify(bus, never()).read(anyShort());
+            }
+        }
     }
 }
