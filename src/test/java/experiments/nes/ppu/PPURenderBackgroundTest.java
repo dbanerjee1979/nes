@@ -31,6 +31,7 @@ public class PPURenderBackgroundTest {
     private short[] plane1Addrs;
     private short[] plane2Addrs;
     private List<Short> nametableAddresses;
+    private int frameCount;
 
     @Before
     public void setup() {
@@ -68,6 +69,8 @@ public class PPURenderBackgroundTest {
             plane1Addrs[i] = (short) ((nametableEntries[i] << 4) & 0xFF0);
             plane2Addrs[i] = (short) (plane1Addrs[i] | 0x80);
         }
+
+        frameCount = 0;
     }
 
     @Test
@@ -77,51 +80,59 @@ public class PPURenderBackgroundTest {
         verify(bus, never()).read(anyShort());
 
         // cycles 1 - 256: read pixel data (but don't render)
-        Iterator<Short> nametableIter = nametableAddresses.iterator();
         for (int cycle = 1, tile = 0; cycle <= 256; cycle += 8, tile++) {
             this.ppu.cycle();
             this.ppu.cycle();
-            verify(bus, description(String.format("Invalid nametable read for tile %d at cycle %d", tile, cycle)))
-                .read(nametableIter.next());
+            verify(bus, times(1).description(String.format("No nametable read for tile %d at cycle %d", tile, cycle)))
+                .read(anyShort());
+            assertFalse(this.ppu.isVBlank());
             this.ppu.cycle();
             this.ppu.cycle();
-            verify(bus, description(String.format("Invalid attribute read for tile %d at cycle %d", tile, cycle)))
-                .read(attrAddrs.get(tile));
+            verify(bus, times(2).description(String.format("No attribute read for tile %d at cycle %d", tile, cycle)))
+                .read(anyShort());
+            assertFalse(this.ppu.isVBlank());
             this.ppu.cycle();
             this.ppu.cycle();
-            verify(bus, description(String.format("Invalid tile plane 1 read for tile %d at cycle %d", tile, cycle)))
-                .read(plane1Addrs[tile]);
+            verify(bus, times(3).description(String.format("No tile plane 1 read for tile %d at cycle %d", tile, cycle)))
+                .read(anyShort());
+            assertFalse(this.ppu.isVBlank());
             this.ppu.cycle();
             this.ppu.cycle();
-            verify(bus, description(String.format("Invalid tile plane 2 read for tile %d at cycle %d", tile, cycle)))
-                .read(plane2Addrs[tile]);
+            verify(bus, times(4).description(String.format("No tile plane 2 read for tile %d at cycle %d", tile, cycle)))
+                .read(anyShort());
+            assertFalse(this.ppu.isVBlank());
             reset(bus);
         }
 
         // run cycles until next scanline fetch
         for (int cycle = 257; cycle < 321; cycle++) {
             this.ppu.cycle();
+            assertFalse(this.ppu.isVBlank());
         }
 
         // cycles 321 - 336: read pixel data for next two scanlines (but don't render)
         reset(bus);
-        nametableIter = nametableAddresses.iterator();
+        Iterator<Short> nametableIter = nametableAddresses.iterator();
         for (int cycle = 321, tile = 0; cycle <= 336; cycle += 8, tile++) {
             this.ppu.cycle();
             this.ppu.cycle();
             verify(bus, description("Invalid nametable read for cycle " + cycle)).read(nametableIter.next());
+            assertFalse(this.ppu.isVBlank());
             this.ppu.cycle();
             this.ppu.cycle();
             verify(bus, description(String.format("Invalid attribute read for tile %d at cycle %d", tile, cycle)))
                 .read(attrAddrs.get(tile));
+            assertFalse(this.ppu.isVBlank());
             this.ppu.cycle();
             this.ppu.cycle();
             verify(bus, description(String.format("Invalid tile plane 1 read for tile %d at cycle %d", tile, cycle)))
                 .read(plane1Addrs[tile]);
+            assertFalse(this.ppu.isVBlank());
             this.ppu.cycle();
             this.ppu.cycle();
             verify(bus, description(String.format("Invalid tile plane 2 read for tile %d at cycle %d", tile, cycle)))
                 .read(plane2Addrs[tile]);
+            assertFalse(this.ppu.isVBlank());
             reset(bus);
         }
 
@@ -130,11 +141,15 @@ public class PPURenderBackgroundTest {
             this.ppu.cycle();
             this.ppu.cycle();
             verify(bus, description("Invalid nametable read for cycle " + cycle)).read(anyShort());
+            assertFalse(this.ppu.isVBlank());
             reset(bus);
         }
 
-        for (int x = 0; x < this.frameBuffer.getWidth(); x++) {
-            assertEquals(String.format("Pixel (%d, 0) should remain black", x), 0, frameBuffer.getRGB(x, 0) & 0xFFFFFF);
+        // Framebuffer isn't cleared between frames
+        if (frameCount == 0) {
+            for (int x = 0; x < this.frameBuffer.getWidth(); x++) {
+                assertEquals(String.format("Pixel (%d, 0) should remain black", x), 0, frameBuffer.getRGB(x, 0) & 0xFFFFFF);
+            }
         }
     }
 
@@ -1328,7 +1343,9 @@ public class PPURenderBackgroundTest {
         // Run pre-render scanline
         for (int cycle = 0; cycle <= 340; cycle++) {
             this.ppu.cycle();
+            assertFalse(this.ppu.isVBlank());
         }
+        // Run render scanlines
         for (int scanline = 0; scanline <= 239; scanline++) {
             for (int cycle = 0; cycle <= 340; cycle++) {
                 this.ppu.cycle();
@@ -1354,5 +1371,35 @@ public class PPURenderBackgroundTest {
                 verify(bus, never()).read(anyShort());
             }
         }
+    }
+
+    @Test
+    public void should_clear_vblank_flag_and_start_pre_render_scanline_again() {
+        // Run pre-render scanline
+        for (int cycle = 0; cycle <= 340; cycle++) {
+            this.ppu.cycle();
+            assertFalse(this.ppu.isVBlank());
+        }
+        // Run render and post-render scanlines
+        for (int scanline = 0; scanline <= 260; scanline++) {
+            for (int cycle = 0; cycle <= 340; cycle++) {
+                this.ppu.cycle();
+                if (scanline <= 240 || scanline == 241 && cycle == 0) {
+                    assertFalse(
+                        String.format("Expecting vblank to be clear at scanline=%d, cycle=%d", scanline, cycle),
+                        this.ppu.isVBlank()
+                    );
+                } else {
+                    assertTrue(
+                        String.format("Expecting vblank to be set at scanline=%d, cycle=%d", scanline, cycle),
+                        this.ppu.isVBlank()
+                    );
+                }
+            }
+        }
+        reset(bus);
+
+        frameCount++;
+        should_read_memory_in_pre_render_scanline_without_rendering();
     }
 }

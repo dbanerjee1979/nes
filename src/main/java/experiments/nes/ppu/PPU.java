@@ -19,7 +19,6 @@ public class PPU {
     private byte plane1;
     private byte plane2;
     private byte attr;
-    private boolean preRender;
     private int x;
     private int y;
     private int scanline;
@@ -34,7 +33,6 @@ public class PPU {
         this.v = new VRamAddress();
         this.t = new VRamAddress();
         this.setBackgroundPatternTable(0);
-        this.preRender = true;
         this.x = 0;
         this.y = -1;
         this.scanline = -1;
@@ -53,9 +51,12 @@ public class PPU {
                 handleRenderScanline();
             }
             if (cycle == 340) {
-                preRender = false;
                 cycle = -1;
                 scanline++;
+                if (scanline == 261) {
+                    scanline = -1;
+                    y = -1;
+                }
             }
         }
         finally {
@@ -66,6 +67,7 @@ public class PPU {
     private void handleRenderScanline() {
         boolean pixelRender;
         if ((pixelRender = (cycle >= 1 && cycle <= 256)) || cycle >= 321 && cycle <= 336) {
+            vblank = false;
             switch (dataCycle++) {
                 case 0:
                     plane1 = tiles[0];
@@ -92,7 +94,7 @@ public class PPU {
                     dataCycle = 0;
                     break;
             }
-            if (!preRender && pixelRender) {
+            if (scanline != -1 && pixelRender) {
                 int colorIndex = ((plane1 & 0x80) == 0 ? 0x00 : 0x01) | ((plane2 & 0x80) == 0 ? 0x00 : 0x02);
                 int paletteAddr = 0x3F00 | ((attr & 0x03) << 2) | colorIndex;
                 byte paletteEntry = bus.read((short) ((paletteAddr & 0x3) == 0 ? 0x3F00 : paletteAddr));
@@ -107,7 +109,7 @@ public class PPU {
         } else if (cycle == 257) {
             x = 0;
             this.v.setX(this.t);
-        } else if (preRender && cycle >= 280 && cycle <= 304) {
+        } else if (scanline == -1 && cycle >= 280 && cycle <= 304) {
             this.v.setY(this.t);
         } else if (cycle >= 337 && cycle <= 340) {
             switch (dataCycle++) {
