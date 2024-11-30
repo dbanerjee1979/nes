@@ -556,5 +556,63 @@ class CpuTest {
             cycle(2, "Read from effective address").read(0x0001).y(0x00);
             cycle(3, "Fetch opcode"               ).read(0x0102).y(0x01);
         }
+
+        @Test
+        void testZeroPageY() {
+            cpu.pc(0x0100);
+            memory(0x0002, 0x01);
+            memory(0x0100, 0xA2);
+            memory(0x0101, 0x01);
+            memory(0x0102, 0xB4);
+            memory(0x0103, 0x01);
+
+            clock(7);
+
+            cycle(0, "Fetch opcode"                ).read(0x0100).y(0x00).x(0x00);
+            cycle(1, "Fetch value"                 ).read(0x0101).y(0x00).x(0x00);
+            cycle(2, "Fetch opcode"                ).read(0x0102).y(0x00).x(0x01);
+            cycle(3, "Fetch address"               ).read(0x0103).y(0x00).x(0x01);
+            cycle(4, "Read from address, add index").read(0x0001).y(0x00).x(0x01);
+            cycle(5, "Read from address           ").read(0x0002).y(0x00).x(0x01);
+            cycle(6, "Fetch opcode"                ).read(0x0104).y(0x01).x(0x01);
+        }
+
+        @Test
+        void testAbsolute() {
+            cpu.pc(0x0100);
+            memory(0x1234, 0x01);
+            memory(0x0100, 0xAC);
+            memory(0x0101, 0x34);
+            memory(0x0102, 0x12);
+
+            clock(5);
+
+            cycle(0, "Fetch opcode"               ).read(0x0100).y(0x00);
+            cycle(1, "Fetch address low byte"     ).read(0x0101).y(0x00);
+            cycle(2, "Fetch address high byte"    ).read(0x0102).y(0x00);
+            cycle(3, "Read from effective address").read(0x1234).y(0x00);
+            cycle(4, "Fetch opcode"               ).read(0x0103).y(0x01);
+        }
+
+        @Test
+        void testAbsoluteX() {
+            cpu.pc(0x0100);
+            memory(0x1235, 0x01);
+            memory(0x0100, 0xA2);
+            memory(0x0101, 0x01);
+            memory(0x0102, 0xBC);
+            memory(0x0103, 0x34);
+            memory(0x0104, 0x12);
+
+            clock(7);
+
+            cycle(0, "Fetch opcode"                      ).read(0x0100).y(0x00).x(0x00);
+            cycle(1, "Fetch value"                       ).read(0x0101).y(0x00).x(0x00);
+            cycle(2, "Fetch opcode"                      ).read(0x0102).y(0x00).x(0x01);
+            cycle(3, "Fetch address low byte"            ).read(0x0103).y(0x00).x(0x01);
+            cycle(4, "Fetch address high byte, add index").read(0x0104).y(0x00).x(0x01);
+            cycle(5, "Read from address"                 ).read(0x1235).y(0x00).x(0x01);
+            cycle(6, "Fetch opcode"                      ).read(0x0105).y(0x01).x(0x01);
+        }
     }
 }

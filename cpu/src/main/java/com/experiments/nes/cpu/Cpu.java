@@ -76,6 +76,9 @@ public class Cpu {
         // LDY
         operation(0xA0, new StandardOperation(immediateMode, this::loadY));
         operation(0xA4, new StandardOperation(zeroPageMode, this::loadY));
+        operation(0xB4, new StandardOperation(zeroPageXMode, this::loadY));
+        operation(0xAC, new StandardOperation(absoluteMode, this::loadY));
+        operation(0xBC, new StandardOperation(absoluteXMode, this::loadY));
     }
 
     private void operation(int opcode, Operation operation) {
