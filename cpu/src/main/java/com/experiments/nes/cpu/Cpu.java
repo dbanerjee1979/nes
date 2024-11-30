@@ -28,7 +28,8 @@ public class Cpu {
 
     enum State {
         FETCH_OPCODE, FETCH_OPCODE_IN_SAME_CYCLE, FETCH_VALUE, FETCH_ADDRESS, READ_EFFECTIVE_ADDRESS,
-        READ_EFFECTIVE_ADDRESS_ADD_INDEX, FETCH_EFFECTIVE_ADDRESS_HIGH, DATA_AVAILABLE
+        READ_EFFECTIVE_ADDRESS_ADD_INDEX, FETCH_EFFECTIVE_ADDRESS_HIGH, FETCH_EFFECTIVE_ADDRESS_HIGH_ADD_INDEX,
+        READ_EFFECTIVE_ADDRESS_FIX_HIGH, DATA_AVAILABLE
     }
 
     private final Memory memory;
@@ -49,6 +50,8 @@ public class Cpu {
         ZeroPageMode zeroPageMode = new ZeroPageMode();
         ZeroPageIndexedMode zeroPageXMode = new ZeroPageIndexedMode();
         AbsoluteMode absoluteMode = new AbsoluteMode();
+        AbsoluteIndexedMode absoluteXMode = new AbsoluteIndexedMode(this::x);
+        AbsoluteIndexedMode absoluteYMode = new AbsoluteIndexedMode(this::y);
 
         operation(0x00, new BreakOperation());
         // LDA
@@ -56,6 +59,8 @@ public class Cpu {
         operation(0xA5, new StandardOperation(zeroPageMode, this::loadA));
         operation(0xB5, new StandardOperation(zeroPageXMode, this::loadA));
         operation(0xAD, new StandardOperation(absoluteMode, this::loadA));
+        operation(0xBD, new StandardOperation(absoluteXMode, this::loadA));
+        operation(0xB9, new StandardOperation(absoluteYMode, this::loadA));
         // LDX
         operation(0xA2, new StandardOperation(immediateMode, this::loadX));
         operation(0xA6, new StandardOperation(zeroPageMode, this::loadX));
@@ -157,6 +162,18 @@ public class Cpu {
         return State.READ_EFFECTIVE_ADDRESS;
     }
 
+    private State fetchAddressHighAddIndex(byte index) {
+        int addressLow = this.address + index;
+        this.address = (short) (((this.memory.load(this.pc++) & 0x00FF) << 8) | (addressLow & 0x00FF));
+        return (addressLow & 0xFF00) == 0 ? State.READ_EFFECTIVE_ADDRESS : State.READ_EFFECTIVE_ADDRESS_FIX_HIGH;
+    }
+
+    private State readEffectiveAddressFixHigh() {
+        this.data = this.memory.load(this.address);
+        this.address += 0x0100;
+        return State.READ_EFFECTIVE_ADDRESS;
+    }
+
     private State readEffectiveAddress() {
         this.data = this.memory.load(this.address);
         return State.DATA_AVAILABLE;
@@ -183,6 +200,11 @@ public class Cpu {
 
     private void loadY() {
         this.y = this.data;
+    }
+
+    @FunctionalInterface
+    private interface ByteSupplier {
+        byte get();
     }
 
     private interface Operation {
@@ -261,6 +283,27 @@ public class Cpu {
                 case FETCH_OPCODE -> State.FETCH_ADDRESS;
                 case FETCH_ADDRESS -> fetchAddress(State.FETCH_EFFECTIVE_ADDRESS_HIGH);
                 case FETCH_EFFECTIVE_ADDRESS_HIGH -> fetchAddressHigh();
+                case READ_EFFECTIVE_ADDRESS -> readEffectiveAddress();
+                case DATA_AVAILABLE -> executeReadOperation(operation);
+                default -> throw new IllegalStateException();
+            };
+        }
+    }
+
+    private class AbsoluteIndexedMode implements AddressingMode {
+        private final ByteSupplier index;
+
+        private AbsoluteIndexedMode(ByteSupplier index) {
+            this.index = index;
+        }
+
+        @Override
+        public State clock(Runnable operation) {
+            return switch (state) {
+                case FETCH_OPCODE -> State.FETCH_ADDRESS;
+                case FETCH_ADDRESS -> fetchAddress(State.FETCH_EFFECTIVE_ADDRESS_HIGH_ADD_INDEX);
+                case FETCH_EFFECTIVE_ADDRESS_HIGH_ADD_INDEX -> fetchAddressHighAddIndex(this.index.get());
+                case READ_EFFECTIVE_ADDRESS_FIX_HIGH -> readEffectiveAddressFixHigh();
                 case READ_EFFECTIVE_ADDRESS -> readEffectiveAddress();
                 case DATA_AVAILABLE -> executeReadOperation(operation);
                 default -> throw new IllegalStateException();
