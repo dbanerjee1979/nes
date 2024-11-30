@@ -28,7 +28,7 @@ public class Cpu {
 
     enum State {
         FETCH_OPCODE, FETCH_OPCODE_IN_SAME_CYCLE, FETCH_VALUE, FETCH_ADDRESS, READ_EFFECTIVE_ADDRESS,
-        READ_EFFECTIVE_ADDRESS_ADD_INDEX, DATA_AVAILABLE
+        READ_EFFECTIVE_ADDRESS_ADD_INDEX, FETCH_EFFECTIVE_ADDRESS_HIGH, DATA_AVAILABLE
     }
 
     private final Memory memory;
@@ -48,12 +48,14 @@ public class Cpu {
         ImmediateMode immediateMode = new ImmediateMode();
         ZeroPageMode zeroPageMode = new ZeroPageMode();
         ZeroPageIndexedMode zeroPageXMode = new ZeroPageIndexedMode();
+        AbsoluteMode absoluteMode = new AbsoluteMode();
 
         operation(0x00, new BreakOperation());
         // LDA
         operation(0xA9, new StandardOperation(immediateMode, this::loadA));
         operation(0xA5, new StandardOperation(zeroPageMode, this::loadA));
         operation(0xB5, new StandardOperation(zeroPageXMode, this::loadA));
+        operation(0xAD, new StandardOperation(absoluteMode, this::loadA));
         // LDX
         operation(0xA2, new StandardOperation(immediateMode, this::loadX));
         operation(0xA6, new StandardOperation(zeroPageMode, this::loadX));
@@ -150,6 +152,11 @@ public class Cpu {
         return nextState;
     }
 
+    private State fetchAddressHigh() {
+        this.address = (short) (((this.memory.load(this.pc++) & 0x00FF) << 8) | (this.address & 0x00FF));
+        return State.READ_EFFECTIVE_ADDRESS;
+    }
+
     private State readEffectiveAddress() {
         this.data = this.memory.load(this.address);
         return State.DATA_AVAILABLE;
@@ -240,6 +247,20 @@ public class Cpu {
                 case FETCH_OPCODE -> State.FETCH_ADDRESS;
                 case FETCH_ADDRESS -> fetchAddress(State.READ_EFFECTIVE_ADDRESS_ADD_INDEX);
                 case READ_EFFECTIVE_ADDRESS_ADD_INDEX -> readEffectiveAddressAddIndex();
+                case READ_EFFECTIVE_ADDRESS -> readEffectiveAddress();
+                case DATA_AVAILABLE -> executeReadOperation(operation);
+                default -> throw new IllegalStateException();
+            };
+        }
+    }
+
+    private class AbsoluteMode implements AddressingMode {
+        @Override
+        public State clock(Runnable operation) {
+            return switch (state) {
+                case FETCH_OPCODE -> State.FETCH_ADDRESS;
+                case FETCH_ADDRESS -> fetchAddress(State.FETCH_EFFECTIVE_ADDRESS_HIGH);
+                case FETCH_EFFECTIVE_ADDRESS_HIGH -> fetchAddressHigh();
                 case READ_EFFECTIVE_ADDRESS -> readEffectiveAddress();
                 case DATA_AVAILABLE -> executeReadOperation(operation);
                 default -> throw new IllegalStateException();

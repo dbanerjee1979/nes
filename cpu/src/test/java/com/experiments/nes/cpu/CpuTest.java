@@ -202,6 +202,27 @@ class CpuTest {
             cycle(5, "Read from address           ").read(0x0001).a(0x00).x(0x02);
             cycle(6, "Fetch opcode"                ).read(0x0104).a(0x01).x(0x02);
         }
+
+        @Test
+        void testAbsolute() {
+            cpu.pc(0x0100);
+            memory(0x1234, 0x01);
+            memory(0x0100, 0xAD);
+            memory(0x0101, 0x34);
+            memory(0x0102, 0x12);
+
+            clock();
+            clock();
+            clock();
+            clock();
+            clock();
+
+            cycle(0, "Fetch opcode"               ).read(0x0100).a(0x00);
+            cycle(1, "Fetch low byte"             ).read(0x0101).a(0x00);
+            cycle(2, "Fetch high byte"            ).read(0x0102).a(0x00);
+            cycle(3, "Read from effective address").read(0x1234).a(0x00);
+            cycle(4, "Fetch opcode"               ).read(0x0103).a(0x01);
+        }
     }
 
     @Nested
