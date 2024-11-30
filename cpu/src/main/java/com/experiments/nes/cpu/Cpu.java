@@ -49,7 +49,8 @@ public class Cpu {
     {
         ImmediateMode immediateMode = new ImmediateMode();
         ZeroPageMode zeroPageMode = new ZeroPageMode();
-        ZeroPageIndexedMode zeroPageXMode = new ZeroPageIndexedMode();
+        ZeroPageIndexedMode zeroPageXMode = new ZeroPageIndexedMode(this::x);
+        ZeroPageIndexedMode zeroPageYMode = new ZeroPageIndexedMode(this::y);
         AbsoluteMode absoluteMode = new AbsoluteMode();
         AbsoluteIndexedMode absoluteXMode = new AbsoluteIndexedMode(this::x);
         AbsoluteIndexedMode absoluteYMode = new AbsoluteIndexedMode(this::y);
@@ -69,6 +70,9 @@ public class Cpu {
         // LDX
         operation(0xA2, new StandardOperation(immediateMode, this::loadX));
         operation(0xA6, new StandardOperation(zeroPageMode, this::loadX));
+        operation(0xB6, new StandardOperation(zeroPageYMode, this::loadX));
+        operation(0xAE, new StandardOperation(absoluteMode, this::loadX));
+        operation(0xBE, new StandardOperation(absoluteYMode, this::loadX));
         // LDY
         operation(0xA0, new StandardOperation(immediateMode, this::loadY));
         operation(0xA4, new StandardOperation(zeroPageMode, this::loadY));
@@ -205,9 +209,9 @@ public class Cpu {
         return State.DATA_AVAILABLE;
     }
 
-    private State readEffectiveAddressAddIndex() {
+    private State readEffectiveAddressAddIndex(byte index) {
         this.data = this.memory.load(this.address);
-        this.address = (short) ((this.address & 0xFF00) | ((this.address + this.x) & 0x00FF));
+        this.address = (short) ((this.address & 0xFF00) | ((this.address + index) & 0x00FF));
         return State.READ_EFFECTIVE_ADDRESS;
     }
 
@@ -294,12 +298,18 @@ public class Cpu {
     }
 
     private class ZeroPageIndexedMode implements AddressingMode {
+        private final ByteSupplier index;
+
+        private ZeroPageIndexedMode(ByteSupplier index) {
+            this.index = index;
+        }
+
         @Override
         public State clock(Runnable operation) {
             return switch (state) {
                 case FETCH_OPCODE -> State.FETCH_ADDRESS;
                 case FETCH_ADDRESS -> fetchAddress(State.READ_EFFECTIVE_ADDRESS_ADD_INDEX, Cpu.this::nextPC);
-                case READ_EFFECTIVE_ADDRESS_ADD_INDEX -> readEffectiveAddressAddIndex();
+                case READ_EFFECTIVE_ADDRESS_ADD_INDEX -> readEffectiveAddressAddIndex(index.get());
                 case READ_EFFECTIVE_ADDRESS -> readEffectiveAddress();
                 case DATA_AVAILABLE -> executeReadOperation(operation);
                 default -> throw new IllegalStateException();
