@@ -54,7 +54,7 @@ public class Cpu {
         AbsoluteIndexedMode absoluteXMode = new AbsoluteIndexedMode(this::x);
         AbsoluteIndexedMode absoluteYMode = new AbsoluteIndexedMode(this::y);
         IndexedIndirectMode indexedIndirectMode = new IndexedIndirectMode();
-        IndirectIndexedMode indirectIndexedtMode = new IndirectIndexedMode();
+        IndirectIndexedMode indirectIndexedMode = new IndirectIndexedMode();
 
         operation(0x00, new BreakOperation());
         // LDA
@@ -65,7 +65,7 @@ public class Cpu {
         operation(0xBD, new StandardOperation(absoluteXMode, this::loadA));
         operation(0xB9, new StandardOperation(absoluteYMode, this::loadA));
         operation(0xA1, new StandardOperation(indexedIndirectMode, this::loadA));
-        operation(0xB1, new StandardOperation(indirectIndexedtMode, this::loadA));
+        operation(0xB1, new StandardOperation(indirectIndexedMode, this::loadA));
         // LDX
         operation(0xA2, new StandardOperation(immediateMode, this::loadX));
         operation(0xA6, new StandardOperation(zeroPageMode, this::loadX));
