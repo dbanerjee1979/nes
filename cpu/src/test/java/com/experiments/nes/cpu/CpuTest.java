@@ -68,6 +68,12 @@ class CpuTest {
         this.memory.store((short) address, (byte) value);
     }
 
+    void clock(int cycles) {
+        for (int cycle = 0; cycle < cycles; cycle++) {
+            clock();
+        }
+    }
+
     void clock() {
         cpu.clock();
         memory.clock();
@@ -124,9 +130,7 @@ class CpuTest {
             memory(0x0100, 0xA9);
             memory(0x0101, 0x01);
 
-            clock();
-            clock();
-            clock();
+            clock(3);
 
             cycle(0, "Fetch opcode").read(0x0100).a(0x00);
             cycle(1, "Fetch value" ).read(0x0101).a(0x00);
@@ -140,10 +144,7 @@ class CpuTest {
             memory(0x0100, 0xA5);
             memory(0x0101, 0x01);
 
-            clock();
-            clock();
-            clock();
-            clock();
+            clock(4);
 
             cycle(0, "Fetch opcode"               ).read(0x0100).a(0x00);
             cycle(1, "Fetch address"              ).read(0x0101).a(0x00);
@@ -160,13 +161,7 @@ class CpuTest {
             memory(0x0102, 0xB5);
             memory(0x0103, 0x01);
 
-            clock();
-            clock();
-            clock();
-            clock();
-            clock();
-            clock();
-            clock();
+            clock(7);
 
             cycle(0, "Fetch opcode"                ).read(0x0100).a(0x00).x(0x00);
             cycle(1, "Fetch value"                 ).read(0x0101).a(0x00).x(0x00);
@@ -186,13 +181,7 @@ class CpuTest {
             memory(0x0102, 0xB5);
             memory(0x0103, 0xFF);
 
-            clock();
-            clock();
-            clock();
-            clock();
-            clock();
-            clock();
-            clock();
+            clock(7);
 
             cycle(0, "Fetch opcode"                ).read(0x0100).a(0x00).x(0x00);
             cycle(1, "Fetch value"                 ).read(0x0101).a(0x00).x(0x00);
@@ -211,11 +200,7 @@ class CpuTest {
             memory(0x0101, 0x34);
             memory(0x0102, 0x12);
 
-            clock();
-            clock();
-            clock();
-            clock();
-            clock();
+            clock(5);
 
             cycle(0, "Fetch opcode"               ).read(0x0100).a(0x00);
             cycle(1, "Fetch address low byte"     ).read(0x0101).a(0x00);
@@ -234,13 +219,7 @@ class CpuTest {
             memory(0x0103, 0x34);
             memory(0x0104, 0x12);
 
-            clock();
-            clock();
-            clock();
-            clock();
-            clock();
-            clock();
-            clock();
+            clock(7);
 
             cycle(0, "Fetch opcode"                      ).read(0x0100).a(0x00).x(0x00);
             cycle(1, "Fetch value"                       ).read(0x0101).a(0x00).x(0x00);
@@ -261,14 +240,7 @@ class CpuTest {
             memory(0x0103, 0xFF);
             memory(0x0104, 0x12);
 
-            clock();
-            clock();
-            clock();
-            clock();
-            clock();
-            clock();
-            clock();
-            clock();
+            clock(8);
 
             cycle(0, "Fetch opcode"                      ).read(0x0100).a(0x00).x(0x00);
             cycle(1, "Fetch value"                       ).read(0x0101).a(0x00).x(0x00);
@@ -290,14 +262,7 @@ class CpuTest {
             memory(0x0103, 0xFF);
             memory(0x0104, 0xFF);
 
-            clock();
-            clock();
-            clock();
-            clock();
-            clock();
-            clock();
-            clock();
-            clock();
+            clock(8);
 
             cycle(0, "Fetch opcode"                      ).read(0x0100).a(0x00).x(0x00);
             cycle(1, "Fetch value"                       ).read(0x0101).a(0x00).x(0x00);
@@ -319,13 +284,7 @@ class CpuTest {
             memory(0x0103, 0x34);
             memory(0x0104, 0x12);
 
-            clock();
-            clock();
-            clock();
-            clock();
-            clock();
-            clock();
-            clock();
+            clock(7);
 
             cycle(0, "Fetch opcode"                      ).read(0x0100).a(0x00).y(0x00);
             cycle(1, "Fetch value"                       ).read(0x0101).a(0x00).y(0x00);
@@ -345,9 +304,7 @@ class CpuTest {
             memory(0x0100, 0xA2);
             memory(0x0101, 0x01);
 
-            clock();
-            clock();
-            clock();
+            clock(3);
 
             cycle(0, "Fetch opcode").read(0x0100).x(0x00);
             cycle(1, "Fetch value" ).read(0x0101).x(0x00);
@@ -361,10 +318,7 @@ class CpuTest {
             memory(0x0100, 0xA6);
             memory(0x0101, 0x01);
 
-            clock();
-            clock();
-            clock();
-            clock();
+            clock(4);
 
             cycle(0, "Fetch opcode"               ).read(0x0100).x(0x00);
             cycle(1, "Fetch address"              ).read(0x0101).x(0x00);
@@ -381,9 +335,7 @@ class CpuTest {
             memory(0x0100, 0xA0);
             memory(0x0101, 0x01);
 
-            clock();
-            clock();
-            clock();
+            clock(3);
 
             cycle(0, "Fetch opcode").read(0x0100).y(0x00);
             cycle(1, "Fetch value" ).read(0x0101).y(0x00);
@@ -397,10 +349,7 @@ class CpuTest {
             memory(0x0100, 0xA4);
             memory(0x0101, 0x01);
 
-            clock();
-            clock();
-            clock();
-            clock();
+            clock(4);
 
             cycle(0, "Fetch opcode"               ).read(0x0100).y(0x00);
             cycle(1, "Fetch address"              ).read(0x0101).y(0x00);
