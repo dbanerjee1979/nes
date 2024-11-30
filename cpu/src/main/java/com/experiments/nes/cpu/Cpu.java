@@ -54,6 +54,7 @@ public class Cpu {
         AbsoluteIndexedMode absoluteXMode = new AbsoluteIndexedMode(this::x);
         AbsoluteIndexedMode absoluteYMode = new AbsoluteIndexedMode(this::y);
         IndexedIndirectMode indexedIndirectMode = new IndexedIndirectMode();
+        IndirectIndexedMode indirecIndexedtMode = new IndirectIndexedMode();
 
         operation(0x00, new BreakOperation());
         // LDA
@@ -64,6 +65,7 @@ public class Cpu {
         operation(0xBD, new StandardOperation(absoluteXMode, this::loadA));
         operation(0xB9, new StandardOperation(absoluteYMode, this::loadA));
         operation(0xA1, new StandardOperation(indexedIndirectMode, this::loadA));
+        operation(0xB1, new StandardOperation(indirecIndexedtMode, this::loadA));
         // LDX
         operation(0xA2, new StandardOperation(immediateMode, this::loadX));
         operation(0xA6, new StandardOperation(zeroPageMode, this::loadX));
@@ -159,9 +161,9 @@ public class Cpu {
         return State.DATA_AVAILABLE;
     }
 
-    private State fetchPointer() {
+    private State fetchPointer(State nextState) {
         this.pointer = (short) (this.memory.load(this.pc++) & 0x00FF);
-        return State.READ_POINTER_ADD_INDEX;
+        return nextState;
     }
 
     private short nextPointer() {
@@ -186,9 +188,9 @@ public class Cpu {
         return State.READ_EFFECTIVE_ADDRESS;
     }
 
-    private State fetchAddressHighAddIndex(byte index) {
+    private State fetchAddressHighAddIndex(ShortSupplier nextPointer, byte index) {
         int addressLow = this.address + index;
-        this.address = (short) (((this.memory.load(this.pc++) & 0x00FF) << 8) | (addressLow & 0x00FF));
+        this.address = (short) (((this.memory.load(nextPointer.get()) & 0x00FF) << 8) | (addressLow & 0x00FF));
         return (addressLow & 0xFF00) == 0 ? State.READ_EFFECTIVE_ADDRESS : State.READ_EFFECTIVE_ADDRESS_FIX_HIGH;
     }
 
@@ -331,7 +333,7 @@ public class Cpu {
             return switch (state) {
                 case FETCH_OPCODE -> State.FETCH_ADDRESS;
                 case FETCH_ADDRESS -> fetchAddress(State.FETCH_EFFECTIVE_ADDRESS_HIGH_ADD_INDEX, Cpu.this::nextPC);
-                case FETCH_EFFECTIVE_ADDRESS_HIGH_ADD_INDEX -> fetchAddressHighAddIndex(this.index.get());
+                case FETCH_EFFECTIVE_ADDRESS_HIGH_ADD_INDEX -> fetchAddressHighAddIndex(Cpu.this::nextPC, this.index.get());
                 case READ_EFFECTIVE_ADDRESS -> readEffectiveAddress();
                 case READ_EFFECTIVE_ADDRESS_FIX_HIGH -> readEffectiveAddressFixHigh();
                 case DATA_AVAILABLE -> executeReadOperation(operation);
@@ -345,11 +347,27 @@ public class Cpu {
         public State clock(Runnable operation) {
             return switch (state) {
                 case FETCH_OPCODE -> State.FETCH_POINTER;
-                case FETCH_POINTER -> fetchPointer();
+                case FETCH_POINTER -> fetchPointer(State.READ_POINTER_ADD_INDEX);
                 case READ_POINTER_ADD_INDEX -> readPointerAddIndex();
                 case FETCH_ADDRESS -> fetchAddress(State.FETCH_EFFECTIVE_ADDRESS_HIGH, Cpu.this::nextPointer);
                 case FETCH_EFFECTIVE_ADDRESS_HIGH -> fetchAddressHigh(Cpu.this::nextPointer);
                 case READ_EFFECTIVE_ADDRESS -> readEffectiveAddress();
+                case DATA_AVAILABLE -> executeReadOperation(operation);
+                default -> throw new IllegalStateException();
+            };
+        }
+    }
+
+    private class IndirectIndexedMode implements AddressingMode {
+        @Override
+        public State clock(Runnable operation) {
+            return switch (state) {
+                case FETCH_OPCODE -> State.FETCH_POINTER;
+                case FETCH_POINTER -> fetchPointer(State.FETCH_ADDRESS);
+                case FETCH_ADDRESS -> fetchAddress(State.FETCH_EFFECTIVE_ADDRESS_HIGH_ADD_INDEX, Cpu.this::nextPointer);
+                case FETCH_EFFECTIVE_ADDRESS_HIGH_ADD_INDEX -> fetchAddressHighAddIndex(Cpu.this::nextPointer, y);
+                case READ_EFFECTIVE_ADDRESS -> readEffectiveAddress();
+                case READ_EFFECTIVE_ADDRESS_FIX_HIGH -> readEffectiveAddressFixHigh();
                 case DATA_AVAILABLE -> executeReadOperation(operation);
                 default -> throw new IllegalStateException();
             };

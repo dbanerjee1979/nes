@@ -296,7 +296,7 @@ class CpuTest {
         }
 
         @Test
-        void testAbsoluteIndexedIndirect() {
+        void testIndexedIndirect() {
             cpu.pc(0x0100);
             memory(0x0002, 0x34);
             memory(0x0003, 0x12);
@@ -320,7 +320,7 @@ class CpuTest {
         }
 
         @Test
-        void testAbsoluteIndexedIndirectPageCrossing() {
+        void testIndexedIndirectPageCrossing() {
             cpu.pc(0x0100);
             memory(0x0000, 0x34);
             memory(0x0001, 0x12);
@@ -344,7 +344,7 @@ class CpuTest {
         }
 
         @Test
-        void testAbsoluteIndexedIndirectPageCrossingAddressStraddlesBoundary() {
+        void testIndexedIndirectPageCrossingAddressStraddlesBoundary() {
             cpu.pc(0x0100);
             memory(0x00FF, 0x34);
             memory(0x0000, 0x12);
@@ -365,6 +365,76 @@ class CpuTest {
             cycle(6, "Fetch address high byte"           ).read(0x0000).a(0x00).x(0x01);
             cycle(7, "Read from address"                 ).read(0x1234).a(0x00).x(0x01);
             cycle(8, "Fetch opcode"                      ).read(0x0104).a(0x01).x(0x01);
+        }
+
+        @Test
+        void testIndirectIndexed() {
+            cpu.pc(0x0100);
+            memory(0x0001, 0x34);
+            memory(0x0002, 0x12);
+            memory(0x1235, 0x01);
+            memory(0x0100, 0xA0);
+            memory(0x0101, 0x01);
+            memory(0x0102, 0xB1);
+            memory(0x0103, 0x01);
+
+            clock(8);
+
+            cycle(0, "Fetch opcode"                      ).read(0x0100).a(0x00).y(0x00);
+            cycle(1, "Fetch value"                       ).read(0x0101).a(0x00).y(0x00);
+            cycle(2, "Fetch opcode"                      ).read(0x0102).a(0x00).y(0x01);
+            cycle(3, "Fetch pointer address"             ).read(0x0103).a(0x00).y(0x01);
+            cycle(4, "Fetch address low byte"            ).read(0x0001).a(0x00).y(0x01);
+            cycle(5, "Fetch address high byte, add Y"    ).read(0x0002).a(0x00).y(0x01);
+            cycle(6, "Read from address"                 ).read(0x1235).a(0x00).y(0x01);
+            cycle(7, "Fetch opcode"                      ).read(0x0104).a(0x01).y(0x01);
+        }
+
+        @Test
+        void testIndirectIndexedPointerStraddlesPageBoundary() {
+            cpu.pc(0x0100);
+            memory(0x00FF, 0x34);
+            memory(0x0000, 0x12);
+            memory(0x1235, 0x01);
+            memory(0x0100, 0xA0);
+            memory(0x0101, 0x01);
+            memory(0x0102, 0xB1);
+            memory(0x0103, 0xFF);
+
+            clock(8);
+
+            cycle(0, "Fetch opcode"                      ).read(0x0100).a(0x00).y(0x00);
+            cycle(1, "Fetch value"                       ).read(0x0101).a(0x00).y(0x00);
+            cycle(2, "Fetch opcode"                      ).read(0x0102).a(0x00).y(0x01);
+            cycle(3, "Fetch pointer address"             ).read(0x0103).a(0x00).y(0x01);
+            cycle(4, "Fetch address low byte"            ).read(0x00FF).a(0x00).y(0x01);
+            cycle(5, "Fetch address high byte, add Y"    ).read(0x0000).a(0x00).y(0x01);
+            cycle(6, "Read from address"                 ).read(0x1235).a(0x00).y(0x01);
+            cycle(7, "Fetch opcode"                      ).read(0x0104).a(0x01).y(0x01);
+        }
+
+        @Test
+        void testIndirectIndexedCrossesPageBoundary() {
+            cpu.pc(0x0100);
+            memory(0x0001, 0xFF);
+            memory(0x0002, 0x12);
+            memory(0x1301, 0x01);
+            memory(0x0100, 0xA0);
+            memory(0x0101, 0x02);
+            memory(0x0102, 0xB1);
+            memory(0x0103, 0x01);
+
+            clock(9);
+
+            cycle(0, "Fetch opcode"                      ).read(0x0100).a(0x00).y(0x00);
+            cycle(1, "Fetch value"                       ).read(0x0101).a(0x00).y(0x00);
+            cycle(2, "Fetch opcode"                      ).read(0x0102).a(0x00).y(0x02);
+            cycle(3, "Fetch pointer address"             ).read(0x0103).a(0x00).y(0x02);
+            cycle(4, "Fetch address low byte"            ).read(0x0001).a(0x00).y(0x02);
+            cycle(5, "Fetch address high byte, add Y"    ).read(0x0002).a(0x00).y(0x02);
+            cycle(6, "Read from address, fix high byte"  ).read(0x1201).a(0x00).y(0x02);
+            cycle(7, "Read from address"                 ).read(0x1301).a(0x00).y(0x02);
+            cycle(8, "Fetch opcode"                      ).read(0x0104).a(0x01).y(0x02);
         }
     }
 
