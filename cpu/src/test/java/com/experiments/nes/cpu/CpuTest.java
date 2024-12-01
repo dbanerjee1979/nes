@@ -188,6 +188,36 @@ class CpuTest {
             cycle(8, "Write old value to address" ).write(0x0001, 0x01);
             cycle(9, "Write new value to address" ).write(0x0001, 0x02);
         }
+
+        @Test
+        void testZeroPageX() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA9); // LDX #01
+            memory(0x0101, 0x01);
+            memory(0x0102, 0xA2); // LDA #01
+            memory(0x0103, 0x01);
+            memory(0x0104, 0x95); // STA $01,X
+            memory(0x0105, 0x01);
+            memory(0x0106, 0x16); // ASL $01,X
+            memory(0x0107, 0x01);
+
+            clock(14);
+
+            cycle(0,  "Fetch opcode"                ).read(0x0100       ).a(0x00).x(0x00);
+            cycle(1,  "Fetch value"                 ).read(0x0101       ).a(0x00).x(0x00);
+            cycle(2,  "Fetch opcode"                ).read(0x0102       ).a(0x01).x(0x00);
+            cycle(3,  "Fetch value"                 ).read(0x0103       ).a(0x01).x(0x00);
+            cycle(4,  "Fetch opcode"                ).read(0x0104       ).a(0x01).x(0x01);
+            cycle(5,  "Fetch address"               ).read(0x0105       ).a(0x01).x(0x01);
+            cycle(6,  "Read from address, add index").read(0x0001       ).a(0x01).x(0x01);
+            cycle(7,  "Write to address"            ).write(0x0002, 0x01).a(0x01).x(0x01);
+            cycle(8,  "Fetch opcode"                ).read(0x0106       ).a(0x01).x(0x01);
+            cycle(9,  "Fetch address"               ).read(0x0107       ).a(0x01).x(0x01);
+            cycle(10, "Read from address, add index").read(0x0001       ).a(0x01).x(0x01);
+            cycle(11, "Read from address"           ).read(0x0002       ).a(0x01).x(0x01);
+            cycle(12, "Write old value to address"  ).write(0x0002, 0x01).a(0x01).x(0x01);
+            cycle(13, "Write new value to address"  ).write(0x0002, 0x02).a(0x01).x(0x01);
+        }
     }
 
     @Nested
@@ -785,11 +815,11 @@ class CpuTest {
         @Test
         void testZeroPageX() {
             cpu.pc(0x0100);
-            memory(0x0100, 0xA9);
+            memory(0x0100, 0xA9); // LDX #01
             memory(0x0101, 0x01);
-            memory(0x0102, 0xA2);
+            memory(0x0102, 0xA2); // LDA #01
             memory(0x0103, 0x01);
-            memory(0x0104, 0x95);
+            memory(0x0104, 0x95); // STA $01,X
             memory(0x0105, 0x01);
 
             clock(9);

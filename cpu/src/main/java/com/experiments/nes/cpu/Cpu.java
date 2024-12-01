@@ -68,6 +68,7 @@ public class Cpu {
         // ASL
         operation(0x0A, new StandardOperation(accumulatorMode, Read, this::leftShift));
         operation(0x06, new StandardOperation(zeroPageMode, ReadWrite, this::leftShift));
+        operation(0x16, new StandardOperation(zeroPageXMode, ReadWrite, this::leftShift));
         // LDA
         operation(0xA9, new StandardOperation(immediateMode, Read, this::loadA));
         operation(0xA5, new StandardOperation(zeroPageMode, Read, this::loadA));
@@ -404,9 +405,10 @@ public class Cpu {
                 case FETCH_OPCODE -> State.FETCH_ADDRESS;
                 case FETCH_ADDRESS -> fetchAddress(State.READ_EFFECTIVE_ADDRESS_ADD_INDEX, Cpu.this::nextPC);
                 case READ_EFFECTIVE_ADDRESS_ADD_INDEX -> readEffectiveAddressAddIndex(
-                        operationType == Read ? State.READ_EFFECTIVE_ADDRESS : State.DATA_AVAILABLE, index.get());
+                        operationType == Write ? State.DATA_AVAILABLE : State.READ_EFFECTIVE_ADDRESS, index.get());
                 case READ_EFFECTIVE_ADDRESS -> readEffectiveAddress();
                 case DATA_AVAILABLE -> executeOperation(operation, operationType);
+                case STORE_RESULT -> storeResult();
                 default -> throw new IllegalStateException();
             };
         }
