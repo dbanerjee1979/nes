@@ -38,7 +38,7 @@ public class Cpu {
     private byte y = 0;
     private short pc = RESET_VECTOR;
     private byte s = -3;
-    private byte p = Flag.InterruptDisabled.mask();
+    private byte p = (byte) (Flag.InterruptDisabled.mask() | 0x20);
     private short address;
     private short pointer;
     private byte data;
@@ -133,6 +133,10 @@ public class Cpu {
         return flag.isSet(p);
     }
 
+    public byte p() {
+        return this.p;
+    }
+
     public void p(int p) {
         this.p = (byte) p;
     }
@@ -224,20 +228,35 @@ public class Cpu {
     }
 
     private void loadA() {
-        this.a = this.data;
+        load(this::a);
     }
 
     private void loadX() {
-        this.x = this.data;
+        load(this::x);
     }
 
     private void loadY() {
-        this.y = this.data;
+        load(this::y);
+    }
+
+    private void load(ByteConsumer register) {
+        register.accept(this.data);
+        if (this.data == 0) {
+            this.p = Flag.Zero.set(this.p);
+        }
+        if ((this.data & 0x80) != 0) {
+            this.p = Flag.Negative.set(this.p);
+        }
     }
 
     @FunctionalInterface
     private interface ByteSupplier {
         byte get();
+    }
+
+    @FunctionalInterface
+    private interface ByteConsumer {
+        void accept(byte value);
     }
 
     @FunctionalInterface

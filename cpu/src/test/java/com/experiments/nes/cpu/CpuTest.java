@@ -1,5 +1,6 @@
 package com.experiments.nes.cpu;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -80,7 +81,8 @@ class CpuTest {
         registers.put(cycle, Map.of(
                 "a", cpu.a(),
                 "x", cpu.x(),
-                "y", cpu.y()));
+                "y", cpu.y(),
+                "p", cpu.p()));
         cycle++;
     }
 
@@ -119,6 +121,18 @@ class CpuTest {
 
         public Verification y(int value) {
             return register("y", value);
+        }
+
+        public Verification flags(String expectedFlags) {
+            byte actual = registers.getOrDefault(cycle, Map.of()).getOrDefault("p", (byte) 0x20);
+            String flagLabels = "NV1BDIZC";
+            int mask = 0x0080;
+            StringBuilder actualFlags = new StringBuilder();
+            for (int i = 0; i < 8; i++, mask >>= 1) {
+                actualFlags.append((actual & mask) != 0 ? flagLabels.charAt(i) : ".");
+            }
+            Assertions.assertEquals(expectedFlags, actualFlags.toString(), description);
+            return this;
         }
     }
 
@@ -436,6 +450,32 @@ class CpuTest {
             cycle(7, "Read from address"                 ).read(0x1301).a(0x00).y(0x02);
             cycle(8, "Fetch opcode"                      ).read(0x0104).a(0x01).y(0x02);
         }
+
+        @Test
+        void testZeroFlag() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA9);
+            memory(0x0101, 0x00);
+
+            clock(3);
+
+            cycle(0, "Fetch opcode").read(0x0100).a(0x00).flags("..1..I..");
+            cycle(1, "Fetch value" ).read(0x0101).a(0x00).flags("..1..I..");
+            cycle(2, "Fetch opcode").read(0x0102).a(0x00).flags("..1..IZ.");
+        }
+
+        @Test
+        void testNegativeFlag() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA9);
+            memory(0x0101, 0x80);
+
+            clock(3);
+
+            cycle(0, "Fetch opcode").read(0x0100).a(0x00).flags("..1..I..");
+            cycle(1, "Fetch value" ).read(0x0101).a(0x00).flags("..1..I..");
+            cycle(2, "Fetch opcode").read(0x0102).a(0x80).flags("N.1..I..");
+        }
     }
 
     @Nested
@@ -525,6 +565,32 @@ class CpuTest {
             cycle(5, "Read from address"                 ).read(0x1235).x(0x00).y(0x01);
             cycle(6, "Fetch opcode"                      ).read(0x0105).x(0x01).y(0x01);
         }
+
+        @Test
+        void testZeroFlag() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA2);
+            memory(0x0101, 0x00);
+
+            clock(3);
+
+            cycle(0, "Fetch opcode").read(0x0100).x(0x00).flags("..1..I..");
+            cycle(1, "Fetch value" ).read(0x0101).x(0x00).flags("..1..I..");
+            cycle(2, "Fetch opcode").read(0x0102).x(0x00).flags("..1..IZ.");
+        }
+
+        @Test
+        void testNegativeFlag() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA2);
+            memory(0x0101, 0x80);
+
+            clock(3);
+
+            cycle(0, "Fetch opcode").read(0x0100).x(0x00).flags("..1..I..");
+            cycle(1, "Fetch value" ).read(0x0101).x(0x00).flags("..1..I..");
+            cycle(2, "Fetch opcode").read(0x0102).x(0x80).flags("N.1..I..");
+        }
     }
 
     @Nested
@@ -613,6 +679,32 @@ class CpuTest {
             cycle(4, "Fetch address high byte, add index").read(0x0104).y(0x00).x(0x01);
             cycle(5, "Read from address"                 ).read(0x1235).y(0x00).x(0x01);
             cycle(6, "Fetch opcode"                      ).read(0x0105).y(0x01).x(0x01);
+        }
+
+        @Test
+        void testZeroFlag() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA0);
+            memory(0x0101, 0x00);
+
+            clock(3);
+
+            cycle(0, "Fetch opcode").read(0x0100).y(0x00).flags("..1..I..");
+            cycle(1, "Fetch value" ).read(0x0101).y(0x00).flags("..1..I..");
+            cycle(2, "Fetch opcode").read(0x0102).y(0x00).flags("..1..IZ.");
+        }
+
+        @Test
+        void testNegativeFlag() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA0);
+            memory(0x0101, 0x80);
+
+            clock(3);
+
+            cycle(0, "Fetch opcode").read(0x0100).y(0x00).flags("..1..I..");
+            cycle(1, "Fetch value" ).read(0x0101).y(0x00).flags("..1..I..");
+            cycle(2, "Fetch opcode").read(0x0102).y(0x80).flags("N.1..I..");
         }
     }
 }
