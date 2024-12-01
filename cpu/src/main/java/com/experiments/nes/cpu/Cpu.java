@@ -89,6 +89,7 @@ public class Cpu {
         // STA
         operation(0x85, new StandardOperation(zeroPageMode, Write, this::storeA));
         operation(0x95, new StandardOperation(zeroPageXMode, Write, this::storeA));
+        operation(0x8D, new StandardOperation(absoluteMode, Write, this::storeA));
     }
 
     private void operation(int opcode, Operation operation) {
@@ -204,9 +205,9 @@ public class Cpu {
         return nextState;
     }
 
-    private State fetchAddressHigh(ShortSupplier pointer) {
+    private State fetchAddressHigh(State nextState, ShortSupplier pointer) {
         this.address = (short) (((this.memory.load(pointer.get()) & 0x00FF) << 8) | (this.address & 0x00FF));
-        return State.READ_EFFECTIVE_ADDRESS;
+        return nextState;
     }
 
     private State fetchAddressHighAddIndex(ShortSupplier nextPointer, byte index) {
@@ -367,7 +368,8 @@ public class Cpu {
             return switch (state) {
                 case FETCH_OPCODE -> State.FETCH_ADDRESS;
                 case FETCH_ADDRESS -> fetchAddress(State.FETCH_EFFECTIVE_ADDRESS_HIGH, Cpu.this::nextPC);
-                case FETCH_EFFECTIVE_ADDRESS_HIGH -> fetchAddressHigh(Cpu.this::nextPC);
+                case FETCH_EFFECTIVE_ADDRESS_HIGH -> fetchAddressHigh(
+                        operationType == Read ? State.READ_EFFECTIVE_ADDRESS : State.DATA_AVAILABLE, Cpu.this::nextPC);
                 case READ_EFFECTIVE_ADDRESS -> readEffectiveAddress();
                 case DATA_AVAILABLE -> executeOperation(operation, operationType);
                 default -> throw new IllegalStateException();
@@ -404,7 +406,7 @@ public class Cpu {
                 case FETCH_POINTER -> fetchPointer(State.READ_POINTER_ADD_INDEX);
                 case READ_POINTER_ADD_INDEX -> readPointerAddIndex();
                 case FETCH_ADDRESS -> fetchAddress(State.FETCH_EFFECTIVE_ADDRESS_HIGH, Cpu.this::nextPointer);
-                case FETCH_EFFECTIVE_ADDRESS_HIGH -> fetchAddressHigh(Cpu.this::nextPointer);
+                case FETCH_EFFECTIVE_ADDRESS_HIGH -> fetchAddressHigh(State.READ_EFFECTIVE_ADDRESS, Cpu.this::nextPointer);
                 case READ_EFFECTIVE_ADDRESS -> readEffectiveAddress();
                 case DATA_AVAILABLE -> executeOperation(operation, operationType);
                 default -> throw new IllegalStateException();
