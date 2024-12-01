@@ -94,6 +94,14 @@ public class Cpu {
         operation(0x99, new StandardOperation(absoluteYMode, Write, this::storeA));
         operation(0x81, new StandardOperation(indexedIndirectMode, Write, this::storeA));
         operation(0x91, new StandardOperation(indirectIndexedMode, Write, this::storeA));
+        // STX
+        operation(0x86, new StandardOperation(zeroPageMode, Write, this::storeX));
+        operation(0x96, new StandardOperation(zeroPageYMode, Write, this::storeX));
+        operation(0x8E, new StandardOperation(absoluteMode, Write, this::storeX));
+        // STY
+        operation(0x84, new StandardOperation(zeroPageMode, Write, this::storeY));
+        operation(0x94, new StandardOperation(zeroPageXMode, Write, this::storeY));
+        operation(0x8C, new StandardOperation(absoluteMode, Write, this::storeY));
     }
 
     private void operation(int opcode, Operation operation) {
@@ -269,6 +277,14 @@ public class Cpu {
 
     private void storeA() {
         this.memory.store(this.address, this.a);
+    }
+
+    private void storeX() {
+        this.memory.store(this.address, this.x);
+    }
+
+    private void storeY() {
+        this.memory.store(this.address, this.y);
     }
 
     @FunctionalInterface
