@@ -148,11 +148,30 @@ class CpuTest {
     }
 
     @Nested
+    class ASL {
+        @Test
+        void testImmediate() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA9); // LDA #01
+            memory(0x0101, 0x01);
+            memory(0x0102, 0x0A); // ASL A
+
+            clock(5);
+
+            cycle(0, "Fetch opcode"                      ).read(0x0100).a(0x00);
+            cycle(1, "Fetch value"                       ).read(0x0101).a(0x00);
+            cycle(2, "Fetch opcode"                      ).read(0x0102).a(0x01);
+            cycle(3, "Fetch next instruction, throw away").read(0x0103).a(0x01);
+            cycle(4, "Fetch opcode"                      ).read(0x0103).a(0x02);
+        }
+    }
+
+    @Nested
     class LDA {
         @Test
         void testImmediate() {
             cpu.pc(0x0100);
-            memory(0x0100, 0xA9);
+            memory(0x0100, 0xA9); // LDA #01
             memory(0x0101, 0x01);
 
             clock(3);
@@ -166,7 +185,7 @@ class CpuTest {
         void testZeroPage() {
             cpu.pc(0x0100);
             memory(0x0001, 0x01);
-            memory(0x0100, 0xA5);
+            memory(0x0100, 0xA5); // LDA $01
             memory(0x0101, 0x01);
 
             clock(4);
@@ -181,9 +200,9 @@ class CpuTest {
         void testZeroPageX() {
             cpu.pc(0x0100);
             memory(0x0002, 0x01);
-            memory(0x0100, 0xA2);
+            memory(0x0100, 0xA2); // LDX #01
             memory(0x0101, 0x01);
-            memory(0x0102, 0xB5);
+            memory(0x0102, 0xB5); // LDA $01,X
             memory(0x0103, 0x01);
 
             clock(7);
@@ -201,9 +220,9 @@ class CpuTest {
         void testZeroPageXPageCrossing() {
             cpu.pc(0x0100);
             memory(0x0001, 0x01);
-            memory(0x0100, 0xA2);
+            memory(0x0100, 0xA2); // LDX #02
             memory(0x0101, 0x02);
-            memory(0x0102, 0xB5);
+            memory(0x0102, 0xB5); // LDA $FF,X
             memory(0x0103, 0xFF);
 
             clock(7);
@@ -221,7 +240,7 @@ class CpuTest {
         void testAbsolute() {
             cpu.pc(0x0100);
             memory(0x1234, 0x01);
-            memory(0x0100, 0xAD);
+            memory(0x0100, 0xAD); // LDA $1234
             memory(0x0101, 0x34);
             memory(0x0102, 0x12);
 
@@ -238,9 +257,9 @@ class CpuTest {
         void testAbsoluteX() {
             cpu.pc(0x0100);
             memory(0x1235, 0x01);
-            memory(0x0100, 0xA2);
+            memory(0x0100, 0xA2); // LDX #01
             memory(0x0101, 0x01);
-            memory(0x0102, 0xBD);
+            memory(0x0102, 0xBD); // LDA $1234,X
             memory(0x0103, 0x34);
             memory(0x0104, 0x12);
 
@@ -259,9 +278,9 @@ class CpuTest {
         void testAbsoluteXPageCrossing() {
             cpu.pc(0x0100);
             memory(0x1301, 0x01);
-            memory(0x0100, 0xA2);
+            memory(0x0100, 0xA2); // LDX #02
             memory(0x0101, 0x02);
-            memory(0x0102, 0xBD);
+            memory(0x0102, 0xBD); // LDA $12FF,X
             memory(0x0103, 0xFF);
             memory(0x0104, 0x12);
 
@@ -281,10 +300,10 @@ class CpuTest {
         void testAbsoluteXPageCrossingEndOfMemory() {
             cpu.pc(0x0100);
             memory(0x0001, 0x01);
-            memory(0x0100, 0xA2);
+            memory(0x0100, 0xA2); // LDX #02
             memory(0x0101, 0x02);
             memory(0x0102, 0xBD);
-            memory(0x0103, 0xFF);
+            memory(0x0103, 0xFF); // LDA $FFFF,X
             memory(0x0104, 0xFF);
 
             clock(8);
@@ -303,9 +322,9 @@ class CpuTest {
         void testAbsoluteY() {
             cpu.pc(0x0100);
             memory(0x1235, 0x01);
-            memory(0x0100, 0xA0);
+            memory(0x0100, 0xA0); // LDY #01
             memory(0x0101, 0x01);
-            memory(0x0102, 0xB9);
+            memory(0x0102, 0xB9); // LDA $1234,X
             memory(0x0103, 0x34);
             memory(0x0104, 0x12);
 
@@ -326,9 +345,9 @@ class CpuTest {
             memory(0x0002, 0x34);
             memory(0x0003, 0x12);
             memory(0x1234, 0x01);
-            memory(0x0100, 0xA2);
+            memory(0x0100, 0xA2); // LDX #01
             memory(0x0101, 0x01);
-            memory(0x0102, 0xA1);
+            memory(0x0102, 0xA1); // LDA ($01,X)
             memory(0x0103, 0x01);
 
             clock(9);
@@ -350,9 +369,9 @@ class CpuTest {
             memory(0x0000, 0x34);
             memory(0x0001, 0x12);
             memory(0x1234, 0x01);
-            memory(0x0100, 0xA2);
+            memory(0x0100, 0xA2); // LDX #01
             memory(0x0101, 0x01);
-            memory(0x0102, 0xA1);
+            memory(0x0102, 0xA1); // LDA ($FF,X)
             memory(0x0103, 0xFF);
 
             clock(9);
@@ -374,9 +393,9 @@ class CpuTest {
             memory(0x00FF, 0x34);
             memory(0x0000, 0x12);
             memory(0x1234, 0x01);
-            memory(0x0100, 0xA2);
+            memory(0x0100, 0xA2); // LDX #01
             memory(0x0101, 0x01);
-            memory(0x0102, 0xA1);
+            memory(0x0102, 0xA1); // LDA ($FE,X)
             memory(0x0103, 0xFE);
 
             clock(9);
@@ -398,9 +417,9 @@ class CpuTest {
             memory(0x0001, 0x34);
             memory(0x0002, 0x12);
             memory(0x1235, 0x01);
-            memory(0x0100, 0xA0);
+            memory(0x0100, 0xA0); // LDY #01
             memory(0x0101, 0x01);
-            memory(0x0102, 0xB1);
+            memory(0x0102, 0xB1); // LDA ($01),Y
             memory(0x0103, 0x01);
 
             clock(8);
@@ -421,9 +440,9 @@ class CpuTest {
             memory(0x00FF, 0x34);
             memory(0x0000, 0x12);
             memory(0x1235, 0x01);
-            memory(0x0100, 0xA0);
+            memory(0x0100, 0xA0); // LDY #01
             memory(0x0101, 0x01);
-            memory(0x0102, 0xB1);
+            memory(0x0102, 0xB1); // LDA ($FF),Y
             memory(0x0103, 0xFF);
 
             clock(8);
@@ -444,9 +463,9 @@ class CpuTest {
             memory(0x0001, 0xFF);
             memory(0x0002, 0x12);
             memory(0x1301, 0x01);
-            memory(0x0100, 0xA0);
+            memory(0x0100, 0xA0); // LDY #02
             memory(0x0101, 0x02);
-            memory(0x0102, 0xB1);
+            memory(0x0102, 0xB1); // LDA ($01),Y
             memory(0x0103, 0x01);
 
             clock(9);
@@ -465,7 +484,7 @@ class CpuTest {
         @Test
         void testZeroFlag() {
             cpu.pc(0x0100);
-            memory(0x0100, 0xA9);
+            memory(0x0100, 0xA9); // LDA #00
             memory(0x0101, 0x00);
 
             clock(3);
@@ -478,7 +497,7 @@ class CpuTest {
         @Test
         void testNegativeFlag() {
             cpu.pc(0x0100);
-            memory(0x0100, 0xA9);
+            memory(0x0100, 0xA9); // LDA #80
             memory(0x0101, 0x80);
 
             clock(3);

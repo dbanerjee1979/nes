@@ -1,7 +1,6 @@
 package com.experiments.nes.cpu;
 
-import static com.experiments.nes.cpu.Cpu.OperationType.Read;
-import static com.experiments.nes.cpu.Cpu.OperationType.Write;
+import static com.experiments.nes.cpu.Cpu.OperationType.*;
 
 public class Cpu {
     private static final short RESET_VECTOR = (short) 0xFFFC;
@@ -32,7 +31,7 @@ public class Cpu {
     enum State {
         FETCH_OPCODE, FETCH_OPCODE_IN_SAME_CYCLE, FETCH_VALUE, FETCH_ADDRESS, READ_EFFECTIVE_ADDRESS,
         READ_EFFECTIVE_ADDRESS_ADD_INDEX, FETCH_EFFECTIVE_ADDRESS_HIGH, FETCH_EFFECTIVE_ADDRESS_HIGH_ADD_INDEX,
-        READ_EFFECTIVE_ADDRESS_FIX_HIGH, FETCH_POINTER, READ_POINTER_ADD_INDEX, DATA_AVAILABLE
+        READ_EFFECTIVE_ADDRESS_FIX_HIGH, FETCH_POINTER, READ_POINTER_ADD_INDEX, FETCH_BOGUS_INSTRUCTION, DATA_AVAILABLE
     }
 
     enum OperationType {
@@ -63,8 +62,11 @@ public class Cpu {
         AbsoluteIndexedMode absoluteYMode = new AbsoluteIndexedMode(this::y);
         IndexedIndirectMode indexedIndirectMode = new IndexedIndirectMode();
         IndirectIndexedMode indirectIndexedMode = new IndirectIndexedMode();
+        AccumulatorMode accumulatorMode = new AccumulatorMode();
 
         operation(0x00, new BreakOperation());
+        // ASL
+        operation(0x0A, new StandardOperation(accumulatorMode, Read, this::leftShift));
         // LDA
         operation(0xA9, new StandardOperation(immediateMode, Read, this::loadA));
         operation(0xA5, new StandardOperation(zeroPageMode, Read, this::loadA));
@@ -228,6 +230,12 @@ public class Cpu {
         return (addressLow & 0xFF00) == 0 ? State.READ_EFFECTIVE_ADDRESS : State.READ_EFFECTIVE_ADDRESS_FIX_HIGH;
     }
 
+    private State fetchBogusInstruction() {
+        this.memory.load(this.pc);
+        this.data = this.a;
+        return State.DATA_AVAILABLE;
+    }
+
     private State readEffectiveAddressFixHigh(State nextState) {
         this.data = this.memory.load(this.address);
         this.address += 0x0100;
@@ -247,10 +255,13 @@ public class Cpu {
 
     private State executeOperation(Runnable operation, OperationType operationType) {
         operation.run();
-        return switch (operationType) {
-            case Read -> State.FETCH_OPCODE_IN_SAME_CYCLE;
-            case Write -> State.FETCH_OPCODE;
-        };
+        return operationType == Read ? State.FETCH_OPCODE_IN_SAME_CYCLE : State.FETCH_OPCODE;
+    }
+
+    private State executeOperationAndWrite(Runnable operation, OperationType operationType, ByteConsumer writer) {
+        State nextState = executeOperation(operation, operationType);
+        writer.accept(this.data);
+        return nextState;
     }
 
     private void loadA() {
@@ -285,6 +296,11 @@ public class Cpu {
 
     private void storeY() {
         this.memory.store(this.address, this.y);
+    }
+
+    private void leftShift() {
+        int result = this.data << 1;
+        this.data = (byte) result;
     }
 
     @FunctionalInterface
@@ -449,6 +465,18 @@ public class Cpu {
                 case READ_EFFECTIVE_ADDRESS_FIX_HIGH -> readEffectiveAddressFixHigh(
                         operationType == Read ? State.READ_EFFECTIVE_ADDRESS : State.DATA_AVAILABLE);
                 case DATA_AVAILABLE -> executeOperation(operation, operationType);
+                default -> throw new IllegalStateException();
+            };
+        }
+    }
+
+    private class AccumulatorMode implements AddressingMode {
+        @Override
+        public State clock(Runnable operation, OperationType operationType) {
+            return switch (state) {
+                case FETCH_OPCODE -> State.FETCH_BOGUS_INSTRUCTION;
+                case FETCH_BOGUS_INSTRUCTION -> fetchBogusInstruction();
+                case DATA_AVAILABLE -> executeOperationAndWrite(operation, operationType, Cpu.this::a);
                 default -> throw new IllegalStateException();
             };
         }
