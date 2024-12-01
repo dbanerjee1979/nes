@@ -92,6 +92,7 @@ public class Cpu {
         operation(0x8D, new StandardOperation(absoluteMode, Write, this::storeA));
         operation(0x9D, new StandardOperation(absoluteXMode, Write, this::storeA));
         operation(0x99, new StandardOperation(absoluteYMode, Write, this::storeA));
+        operation(0x81, new StandardOperation(indexedIndirectMode, Write, this::storeA));
     }
 
     private void operation(int opcode, Operation operation) {
@@ -409,7 +410,9 @@ public class Cpu {
                 case FETCH_POINTER -> fetchPointer(State.READ_POINTER_ADD_INDEX);
                 case READ_POINTER_ADD_INDEX -> readPointerAddIndex();
                 case FETCH_ADDRESS -> fetchAddress(State.FETCH_EFFECTIVE_ADDRESS_HIGH, Cpu.this::nextPointer);
-                case FETCH_EFFECTIVE_ADDRESS_HIGH -> fetchAddressHigh(State.READ_EFFECTIVE_ADDRESS, Cpu.this::nextPointer);
+                case FETCH_EFFECTIVE_ADDRESS_HIGH -> fetchAddressHigh(
+                        operationType == Read ? State.READ_EFFECTIVE_ADDRESS : State.DATA_AVAILABLE,
+                        Cpu.this::nextPointer);
                 case READ_EFFECTIVE_ADDRESS -> readEffectiveAddress();
                 case DATA_AVAILABLE -> executeOperation(operation, operationType);
                 default -> throw new IllegalStateException();
