@@ -31,11 +31,11 @@ public class Cpu {
     enum State {
         FETCH_OPCODE, FETCH_OPCODE_IN_SAME_CYCLE, FETCH_VALUE, FETCH_ADDRESS, READ_EFFECTIVE_ADDRESS,
         READ_EFFECTIVE_ADDRESS_ADD_INDEX, FETCH_EFFECTIVE_ADDRESS_HIGH, FETCH_EFFECTIVE_ADDRESS_HIGH_ADD_INDEX,
-        READ_EFFECTIVE_ADDRESS_FIX_HIGH, FETCH_POINTER, READ_POINTER_ADD_INDEX, FETCH_BOGUS_INSTRUCTION, DATA_AVAILABLE
+        READ_EFFECTIVE_ADDRESS_FIX_HIGH, FETCH_POINTER, READ_POINTER_ADD_INDEX, FETCH_BOGUS_INSTRUCTION, STORE_RESULT, DATA_AVAILABLE
     }
 
     enum OperationType {
-        Read, Write
+        Read, Write, ReadWrite
     }
 
     private final Memory memory;
@@ -67,6 +67,7 @@ public class Cpu {
         operation(0x00, new BreakOperation());
         // ASL
         operation(0x0A, new StandardOperation(accumulatorMode, Read, this::leftShift));
+        operation(0x06, new StandardOperation(zeroPageMode, ReadWrite, this::leftShift));
         // LDA
         operation(0xA9, new StandardOperation(immediateMode, Read, this::loadA));
         operation(0xA5, new StandardOperation(zeroPageMode, Read, this::loadA));
@@ -254,14 +255,26 @@ public class Cpu {
     }
 
     private State executeOperation(Runnable operation, OperationType operationType) {
+        if (operationType == ReadWrite) {
+            this.memory.store(this.address, this.data);
+        }
         operation.run();
-        return operationType == Read ? State.FETCH_OPCODE_IN_SAME_CYCLE : State.FETCH_OPCODE;
+        return switch(operationType) {
+            case Read -> State.FETCH_OPCODE_IN_SAME_CYCLE;
+            case Write -> State.FETCH_OPCODE;
+            case ReadWrite -> State.STORE_RESULT;
+        };
     }
 
-    private State executeOperationAndWrite(Runnable operation, OperationType operationType, ByteConsumer writer) {
+    private State executeOperationStoreAccumulator(Runnable operation, OperationType operationType) {
         State nextState = executeOperation(operation, operationType);
-        writer.accept(this.data);
+        this.a = this.data;
         return nextState;
+    }
+
+    private State storeResult() {
+        this.memory.store(this.address, this.data);
+        return State.FETCH_OPCODE;
     }
 
     private void loadA() {
@@ -368,10 +381,11 @@ public class Cpu {
             return switch (state) {
                 case FETCH_OPCODE -> State.FETCH_ADDRESS;
                 case FETCH_ADDRESS -> fetchAddress(
-                        operationType == Read ? State.READ_EFFECTIVE_ADDRESS : State.DATA_AVAILABLE,
+                        operationType == Write ? State.DATA_AVAILABLE : State.READ_EFFECTIVE_ADDRESS,
                         Cpu.this::nextPC);
                 case READ_EFFECTIVE_ADDRESS -> readEffectiveAddress();
                 case DATA_AVAILABLE -> executeOperation(operation, operationType);
+                case STORE_RESULT -> storeResult();
                 default -> throw new IllegalStateException();
             };
         }
@@ -476,7 +490,7 @@ public class Cpu {
             return switch (state) {
                 case FETCH_OPCODE -> State.FETCH_BOGUS_INSTRUCTION;
                 case FETCH_BOGUS_INSTRUCTION -> fetchBogusInstruction();
-                case DATA_AVAILABLE -> executeOperationAndWrite(operation, operationType, Cpu.this::a);
+                case DATA_AVAILABLE -> executeOperationStoreAccumulator(operation, operationType);
                 default -> throw new IllegalStateException();
             };
         }

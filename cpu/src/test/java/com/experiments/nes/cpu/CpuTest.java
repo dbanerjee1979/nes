@@ -164,6 +164,30 @@ class CpuTest {
             cycle(3, "Fetch next instruction, throw away").read(0x0103).a(0x01);
             cycle(4, "Fetch opcode"                      ).read(0x0103).a(0x02);
         }
+
+        @Test
+        void testZeroPage() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA9); // LDA #01
+            memory(0x0101, 0x01);
+            memory(0x0102, 0x85); // STA $01
+            memory(0x0103, 0x01);
+            memory(0x0104, 0x06); // ASL $01
+            memory(0x0105, 0x01);
+
+            clock(10);
+
+            cycle(0, "Fetch opcode"               ).read(0x0100       );
+            cycle(1, "Fetch value"                ).read(0x0101       );
+            cycle(2, "Fetch opcode"               ).read(0x0102       );
+            cycle(3, "Fetch address"              ).read(0x0103       );
+            cycle(4, "Write to effective address" ).write(0x0001, 0x01);
+            cycle(5, "Fetch opcode"               ).read(0x0104       );
+            cycle(6, "Fetch address"              ).read(0x0105       );
+            cycle(7, "Read from effective address").read(0x0001       );
+            cycle(8, "Write old value to address" ).write(0x0001, 0x01);
+            cycle(9, "Write new value to address" ).write(0x0001, 0x02);
+        }
     }
 
     @Nested
@@ -743,9 +767,9 @@ class CpuTest {
         @Test
         void testZeroPage() {
             cpu.pc(0x0100);
-            memory(0x0100, 0xA9);
+            memory(0x0100, 0xA9); // LDA #01
             memory(0x0101, 0x01);
-            memory(0x0102, 0x85);
+            memory(0x0102, 0x85); // STA $01
             memory(0x0103, 0x01);
 
             clock(6);
