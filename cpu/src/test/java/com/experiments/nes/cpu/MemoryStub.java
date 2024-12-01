@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 public class MemoryStub implements Memory {
     private final byte[] memory = new byte[0x10000];
     private final Map<Integer, Short> readAddresses = new HashMap<>();
+    private final Map<Integer, Map<Short, Byte>> writeAddresses = new HashMap<>();
     private int cycle;
 
     @Override
@@ -19,6 +20,7 @@ public class MemoryStub implements Memory {
 
     @Override
     public void store(short address, byte value) {
+        writeAddresses.computeIfAbsent(cycle, k -> new HashMap<>()).put(address, value);
         this.memory[address] = value;
     }
 
@@ -31,5 +33,13 @@ public class MemoryStub implements Memory {
 
     public void clock() {
         this.cycle++;
+    }
+
+    public void verifyWriteAddress(int cycle, int expectedWriteAddress, int expectedValue, String description) {
+        Byte actualValue = writeAddresses.getOrDefault(cycle, Map.of()).get((short) expectedWriteAddress);
+        assertNotNull(actualValue, String.format("%s: Expecting write at address %04x on cycle %d",
+                description, expectedWriteAddress, cycle));
+        assertEquals(expectedValue, actualValue, String.format("%s: Expecting write at address %04x on cycle %d",
+                description, expectedWriteAddress, cycle));
     }
 }

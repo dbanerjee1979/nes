@@ -71,7 +71,12 @@ class CpuTest {
 
     void clock(int cycles) {
         for (int cycle = 0; cycle < cycles; cycle++) {
-            clock();
+            try {
+                clock();
+            }
+            catch (Exception ex) {
+                throw new IllegalStateException("Wrong state at cycle " + cycle, ex);
+            }
         }
     }
 
@@ -102,6 +107,12 @@ class CpuTest {
 
         public Verification read(int address) {
             memory.verifyReadAddress(cycle, address, description);
+            return this;
+        }
+
+
+        public Verification write(int address, int value) {
+            memory.verifyWriteAddress(cycle, address, value, description);
             return this;
         }
 
@@ -705,6 +716,50 @@ class CpuTest {
             cycle(0, "Fetch opcode").read(0x0100).y(0x00).flags("..1..I..");
             cycle(1, "Fetch value" ).read(0x0101).y(0x00).flags("..1..I..");
             cycle(2, "Fetch opcode").read(0x0102).y(0x80).flags("N.1..I..");
+        }
+    }
+
+    @Nested
+    class STA {
+        @Test
+        void testZeroPage() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA9);
+            memory(0x0101, 0x01);
+            memory(0x0102, 0x85);
+            memory(0x0103, 0x01);
+
+            clock(6);
+
+            cycle(0, "Fetch opcode"              ).read(0x0100       ).a(0x00);
+            cycle(1, "Fetch value"               ).read(0x0101       ).a(0x00);
+            cycle(2, "Fetch opcode"              ).read(0x0102       ).a(0x01);
+            cycle(3, "Fetch address"             ).read(0x0103       ).a(0x01);
+            cycle(4, "Write to effective address").write(0x0001, 0x01).a(0x01);
+            cycle(5, "Fetch opcode"              ).read(0x0104       ).a(0x01);
+        }
+
+        @Test
+        void testZeroPageX() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA9);
+            memory(0x0101, 0x01);
+            memory(0x0102, 0xA2);
+            memory(0x0103, 0x01);
+            memory(0x0104, 0x95);
+            memory(0x0105, 0x01);
+
+            clock(9);
+
+            cycle(0, "Fetch opcode"                ).read(0x0100       ).a(0x00).x(0x00);;
+            cycle(1, "Fetch value"                 ).read(0x0101       ).a(0x00).x(0x00);;
+            cycle(2, "Fetch opcode"                ).read(0x0102       ).a(0x01).x(0x00);
+            cycle(3, "Fetch value"                 ).read(0x0103       ).a(0x01).x(0x00);
+            cycle(4, "Fetch opcode"                ).read(0x0104       ).a(0x01).x(0x01);
+            cycle(5, "Fetch address"               ).read(0x0105       ).a(0x01).x(0x01);
+            cycle(6, "Read from address, add index").read(0x0001       ).a(0x01).x(0x01);
+            cycle(7, "Write to address"            ).write(0x0002, 0x01).a(0x01).x(0x01);
+            cycle(8, "Fetch opcode"                ).read(0x0106       ).a(0x01).x(0x01);
         }
     }
 }
