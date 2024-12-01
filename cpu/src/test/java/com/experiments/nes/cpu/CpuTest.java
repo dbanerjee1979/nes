@@ -781,5 +781,80 @@ class CpuTest {
             cycle(5, "Write to effective address").write(0x1234, 0x01).a(0x01);
             cycle(6, "Fetch opcode"              ).read(0x0105       ).a(0x01);
         }
+
+        @Test
+        void testAbsoluteX() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA9);
+            memory(0x0101, 0x01);
+            memory(0x0102, 0xA2);
+            memory(0x0103, 0x01);
+            memory(0x0104, 0x9D);
+            memory(0x0105, 0x34);
+            memory(0x0106, 0x12);
+
+            clock(10);
+
+            cycle(0, "Fetch opcode"                      ).read(0x0100       ).a(0x00).x(0x00);
+            cycle(1, "Fetch value"                       ).read(0x0101       ).a(0x00).x(0x00);
+            cycle(2, "Fetch opcode"                      ).read(0x0102       ).a(0x01).x(0x00);
+            cycle(3, "Fetch value"                       ).read(0x0103       ).a(0x01).x(0x00);
+            cycle(4, "Fetch opcode"                      ).read(0x0104       ).a(0x01).x(0x01);
+            cycle(5, "Fetch address low byte"            ).read(0x0105       ).a(0x01).x(0x01);
+            cycle(6, "Fetch address high byte, add index").read(0x0106       ).a(0x01).x(0x01);
+            cycle(7, "Read from address"                 ).read(0x1235       ).a(0x01).x(0x01);
+            cycle(8, "Write to address"                  ).write(0x1235, 0x01).a(0x01).x(0x01);
+            cycle(9, "Fetch opcode"                      ).read(0x0107       ).a(0x01).x(0x01);
+        }
+
+        @Test
+        void testAbsoluteXPageCrossing() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA9);
+            memory(0x0101, 0x01);
+            memory(0x0102, 0xA2);
+            memory(0x0103, 0x02);
+            memory(0x0104, 0x9D);
+            memory(0x0105, 0xFF);
+            memory(0x0106, 0x12);
+
+            clock(10);
+
+            cycle(0, "Fetch opcode"                      ).read(0x0100       ).a(0x00).x(0x00);
+            cycle(1, "Fetch value"                       ).read(0x0101       ).a(0x00).x(0x00);
+            cycle(2, "Fetch opcode"                      ).read(0x0102       ).a(0x01).x(0x00);
+            cycle(3, "Fetch value"                       ).read(0x0103       ).a(0x01).x(0x00);
+            cycle(4, "Fetch opcode"                      ).read(0x0104       ).a(0x01).x(0x02);
+            cycle(5, "Fetch address low byte"            ).read(0x0105       ).a(0x01).x(0x02);
+            cycle(6, "Fetch address high byte, add index").read(0x0106       ).a(0x01).x(0x02);
+            cycle(7, "Read from address, fix high byte"  ).read(0x1201       ).a(0x01).x(0x02);
+            cycle(8, "Write to address"                  ).write(0x1301, 0x01).a(0x01).x(0x02);
+            cycle(9, "Fetch opcode"                      ).read(0x0107       ).a(0x01).x(0x02);
+        }
+
+        @Test
+        void testAbsoluteY() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA9);
+            memory(0x0101, 0x01);
+            memory(0x0102, 0xA0);
+            memory(0x0103, 0x01);
+            memory(0x0104, 0x99);
+            memory(0x0105, 0x34);
+            memory(0x0106, 0x12);
+
+            clock(10);
+
+            cycle(0, "Fetch opcode"                      ).read(0x0100       ).a(0x00).y(0x00);
+            cycle(1, "Fetch value"                       ).read(0x0101       ).a(0x00).y(0x00);
+            cycle(2, "Fetch opcode"                      ).read(0x0102       ).a(0x01).y(0x00);
+            cycle(3, "Fetch value"                       ).read(0x0103       ).a(0x01).y(0x00);
+            cycle(4, "Fetch opcode"                      ).read(0x0104       ).a(0x01).y(0x01);
+            cycle(5, "Fetch address low byte"            ).read(0x0105       ).a(0x01).y(0x01);
+            cycle(6, "Fetch address high byte, add index").read(0x0106       ).a(0x01).y(0x01);
+            cycle(7, "Read from address"                 ).read(0x1235       ).a(0x01).y(0x01);
+            cycle(8, "Write to address"                  ).write(0x1235, 0x01).a(0x01).y(0x01);
+            cycle(9, "Fetch opcode"                      ).read(0x0107       ).a(0x01).y(0x01);
+        }
     }
 }
