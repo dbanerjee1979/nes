@@ -218,6 +218,34 @@ class CpuTest {
             cycle(12, "Write old value to address"  ).write(0x0002, 0x01).a(0x01).x(0x01);
             cycle(13, "Write new value to address"  ).write(0x0002, 0x02).a(0x01).x(0x01);
         }
+
+        @Test
+        void testAbsolute() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA9); // LDA #01
+            memory(0x0101, 0x01);
+            memory(0x0102, 0x8D); // STA $1234
+            memory(0x0103, 0x34);
+            memory(0x0104, 0x12);
+            memory(0x0105, 0x0E); // ASL $1234
+            memory(0x0106, 0x34);
+            memory(0x0107, 0x12);
+
+            clock(12);
+
+            cycle(0,  "Fetch opcode"                ).read(0x0100       ).a(0x00);
+            cycle(1,  "Fetch value"                 ).read(0x0101       ).a(0x00);
+            cycle(2,  "Fetch opcode"                ).read(0x0102       ).a(0x01);
+            cycle(3,  "Fetch address low byte"      ).read(0x0103       ).a(0x01);
+            cycle(4,  "Fetch address high byte"     ).read(0x0104       ).a(0x01);
+            cycle(5,  "Write to effective address"  ).write(0x1234, 0x01).a(0x01);
+            cycle(6,  "Fetch opcode"                ).read(0x0105       ).a(0x01);
+            cycle(7,  "Fetch address low byte"      ).read(0x0106       ).a(0x01);
+            cycle(8,  "Fetch address high byte"     ).read(0x0107       ).a(0x01);
+            cycle(9,  "Read from effective address" ).read(0x1234       ).a(0x01);
+            cycle(10, "Write old value to address"  ).write(0x1234, 0x01).a(0x01);
+            cycle(11, "Write new value to address"  ).write(0x1234, 0x02).a(0x01);
+        }
     }
 
     @Nested
@@ -838,9 +866,9 @@ class CpuTest {
         @Test
         void testAbsolute() {
             cpu.pc(0x0100);
-            memory(0x0100, 0xA9);
+            memory(0x0100, 0xA9); // LDA #01
             memory(0x0101, 0x01);
-            memory(0x0102, 0x8D);
+            memory(0x0102, 0x8D); // STA $1234
             memory(0x0103, 0x34);
             memory(0x0104, 0x12);
 
