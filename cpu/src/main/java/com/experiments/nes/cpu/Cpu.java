@@ -76,6 +76,11 @@ public class Cpu {
         operation(0xD6, new StandardOperation(zeroPageXMode, ReadWrite, this::decrement));
         operation(0xCE, new StandardOperation(absoluteMode, ReadWrite, this::decrement));
         operation(0xDE, new StandardOperation(absoluteXMode, ReadWrite, this::decrement));
+        // INC
+        operation(0xE6, new StandardOperation(zeroPageMode, ReadWrite, this::increment));
+        operation(0xF6, new StandardOperation(zeroPageXMode, ReadWrite, this::increment));
+        operation(0xEE, new StandardOperation(absoluteMode, ReadWrite, this::increment));
+        operation(0xFE, new StandardOperation(absoluteXMode, ReadWrite, this::increment));
         // LDA
         operation(0xA9, new StandardOperation(immediateMode, Read, this::loadA));
         operation(0xA5, new StandardOperation(zeroPageMode, Read, this::loadA));
@@ -401,6 +406,17 @@ public class Cpu {
 
     private void decrement() {
         this.data--;
+        this.p = (byte) (this.p & ~(Flag.Negative.mask() | Flag.Zero.mask()));
+        if ((this.data & 0x00FF) == 0) {
+            this.p = Flag.Zero.set(this.p);
+        }
+        if ((this.data & 0x0080) != 0) {
+            this.p = Flag.Negative.set(this.p);
+        }
+    }
+
+    private void increment() {
+        this.data++;
         this.p = (byte) (this.p & ~(Flag.Negative.mask() | Flag.Zero.mask()));
         if ((this.data & 0x00FF) == 0) {
             this.p = Flag.Zero.set(this.p);

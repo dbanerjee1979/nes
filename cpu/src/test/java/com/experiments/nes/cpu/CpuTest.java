@@ -365,6 +365,316 @@ class CpuTest {
     }
 
     @Nested
+    class DEC {
+        @Test
+        void testZeroPage() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA9); // LDA #02
+            memory(0x0101, 0x02);
+            memory(0x0102, 0x85); // STA $01
+            memory(0x0103, 0x01);
+            memory(0x0104, 0xC6); // DEC $01
+            memory(0x0105, 0x01);
+
+            clock(10);
+
+            cycle(0, "Fetch opcode"               ).read(0x0100       );
+            cycle(1, "Fetch value"                ).read(0x0101       );
+            cycle(2, "Fetch opcode"               ).read(0x0102       );
+            cycle(3, "Fetch address"              ).read(0x0103       );
+            cycle(4, "Write to effective address" ).write(0x0001, 0x02);
+            cycle(5, "Fetch opcode"               ).read(0x0104       );
+            cycle(6, "Fetch address"              ).read(0x0105       );
+            cycle(7, "Read from effective address").read(0x0001       );
+            cycle(8, "Write old value to address" ).write(0x0001, 0x02);
+            cycle(9, "Write new value to address" ).write(0x0001, 0x01);
+        }
+
+        @Test
+        void testZeroPageX() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA9); // LDA #02
+            memory(0x0101, 0x02);
+            memory(0x0102, 0xA2); // LDX #01
+            memory(0x0103, 0x01);
+            memory(0x0104, 0x95); // STA $01,X
+            memory(0x0105, 0x01);
+            memory(0x0106, 0xD6); // DEC $01,X
+            memory(0x0107, 0x01);
+
+            clock(14);
+
+            cycle(0,  "Fetch opcode"                ).read(0x0100       ).a(0x00).x(0x00);
+            cycle(1,  "Fetch value"                 ).read(0x0101       ).a(0x00).x(0x00);
+            cycle(2,  "Fetch opcode"                ).read(0x0102       ).a(0x02).x(0x00);
+            cycle(3,  "Fetch value"                 ).read(0x0103       ).a(0x02).x(0x00);
+            cycle(4,  "Fetch opcode"                ).read(0x0104       ).a(0x02).x(0x01);
+            cycle(5,  "Fetch address"               ).read(0x0105       ).a(0x02).x(0x01);
+            cycle(6,  "Read from address, add index").read(0x0001       ).a(0x02).x(0x01);
+            cycle(7,  "Write to address"            ).write(0x0002, 0x02).a(0x02).x(0x01);
+            cycle(8,  "Fetch opcode"                ).read(0x0106       ).a(0x02).x(0x01);
+            cycle(9,  "Fetch address"               ).read(0x0107       ).a(0x02).x(0x01);
+            cycle(10, "Read from address, add index").read(0x0001       ).a(0x02).x(0x01);
+            cycle(11, "Read from address"           ).read(0x0002       ).a(0x02).x(0x01);
+            cycle(12, "Write old value to address"  ).write(0x0002, 0x02).a(0x02).x(0x01);
+            cycle(13, "Write new value to address"  ).write(0x0002, 0x01).a(0x02).x(0x01);
+        }
+
+        @Test
+        void testAbsolute() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA9); // LDA #02
+            memory(0x0101, 0x02);
+            memory(0x0102, 0x8D); // STA $1234
+            memory(0x0103, 0x34);
+            memory(0x0104, 0x12);
+            memory(0x0105, 0xCE); // DEC $1234
+            memory(0x0106, 0x34);
+            memory(0x0107, 0x12);
+
+            clock(12);
+
+            cycle(0,  "Fetch opcode"                ).read(0x0100       ).a(0x00);
+            cycle(1,  "Fetch value"                 ).read(0x0101       ).a(0x00);
+            cycle(2,  "Fetch opcode"                ).read(0x0102       ).a(0x02);
+            cycle(3,  "Fetch address low byte"      ).read(0x0103       ).a(0x02);
+            cycle(4,  "Fetch address high byte"     ).read(0x0104       ).a(0x02);
+            cycle(5,  "Write to effective address"  ).write(0x1234, 0x02).a(0x02);
+            cycle(6,  "Fetch opcode"                ).read(0x0105       ).a(0x02);
+            cycle(7,  "Fetch address low byte"      ).read(0x0106       ).a(0x02);
+            cycle(8,  "Fetch address high byte"     ).read(0x0107       ).a(0x02);
+            cycle(9,  "Read from effective address" ).read(0x1234       ).a(0x02);
+            cycle(10, "Write old value to address"  ).write(0x1234, 0x02).a(0x02);
+            cycle(11, "Write new value to address"  ).write(0x1234, 0x01).a(0x02);
+        }
+
+        @Test
+        void testAbsoluteX() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA9); // LDA #02
+            memory(0x0101, 0x02);
+            memory(0x0102, 0xA2); // LDX #01
+            memory(0x0103, 0x01);
+            memory(0x0104, 0x9D); // STA $1234,X
+            memory(0x0105, 0x34);
+            memory(0x0106, 0x12);
+            memory(0x0107, 0xDE); // DEC $1234,X
+            memory(0x0108, 0x34);
+            memory(0x0109, 0x12);
+
+            clock(16);
+
+            cycle(0,  "Fetch opcode"                      ).read(0x0100       ).a(0x00).x(0x00);
+            cycle(1,  "Fetch value"                       ).read(0x0101       ).a(0x00).x(0x00);
+            cycle(2,  "Fetch opcode"                      ).read(0x0102       ).a(0x02).x(0x00);
+            cycle(3,  "Fetch value"                       ).read(0x0103       ).a(0x02).x(0x00);
+            cycle(4,  "Fetch opcode"                      ).read(0x0104       ).a(0x02).x(0x01);
+            cycle(5,  "Fetch address low byte"            ).read(0x0105       ).a(0x02).x(0x01);
+            cycle(6,  "Fetch address high byte, add index").read(0x0106       ).a(0x02).x(0x01);
+            cycle(7,  "Read from address"                 ).read(0x1235       ).a(0x02).x(0x01);
+            cycle(8,  "Write to address"                  ).write(0x1235, 0x02).a(0x02).x(0x01);
+            cycle(9,  "Fetch opcode"                      ).read(0x0107       ).a(0x02).x(0x01);
+            cycle(10, "Fetch address low byte"            ).read(0x0108       ).a(0x02).x(0x01);
+            cycle(11, "Fetch address high byte, add index").read(0x0109       ).a(0x02).x(0x01);
+            cycle(12, "Read from address"                 ).read(0x1235       ).a(0x02).x(0x01);
+            cycle(13, "Re-read from address"              ).read(0x1235       ).a(0x02).x(0x01);
+            cycle(14, "Write old value to address"        ).write(0x1235, 0x02).a(0x02).x(0x01);
+            cycle(15, "Write new value to address"        ).write(0x1235, 0x01).a(0x02).x(0x01);
+        }
+
+        @Test
+        void testZeroFlag() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA9); // LDA #01
+            memory(0x0101, 0x01);
+            memory(0x0102, 0x85); // STA $01
+            memory(0x0103, 0x01);
+            memory(0x0104, 0xC6); // DEC $01
+            memory(0x0105, 0x01);
+
+            clock(10);
+
+            cycle(0, "Fetch opcode"               ).read(0x0100       ).flags("..1..I..");
+            cycle(1, "Fetch value"                ).read(0x0101       ).flags("..1..I..");
+            cycle(2, "Fetch opcode"               ).read(0x0102       ).flags("..1..I..");
+            cycle(3, "Fetch address"              ).read(0x0103       ).flags("..1..I..");
+            cycle(4, "Write to effective address" ).write(0x0001, 0x01).flags("..1..I..");
+            cycle(5, "Fetch opcode"               ).read(0x0104       ).flags("..1..I..");
+            cycle(6, "Fetch address"              ).read(0x0105       ).flags("..1..I..");
+            cycle(7, "Read from effective address").read(0x0001       ).flags("..1..I..");
+            cycle(8, "Write old value to address" ).write(0x0001, 0x01).flags("..1..IZ.");
+            cycle(9, "Write new value to address" ).write(0x0001, 0x00).flags("..1..IZ.");
+        }
+
+        @Test
+        void testNegativeFlag() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA9); // LDA #00
+            memory(0x0101, 0x00);
+            memory(0x0102, 0x85); // STA $01
+            memory(0x0103, 0x01);
+            memory(0x0104, 0xC6); // DEC $01
+            memory(0x0105, 0x01);
+
+            clock(10);
+
+            cycle(0, "Fetch opcode"               ).read(0x0100       ).flags("..1..I..");
+            cycle(1, "Fetch value"                ).read(0x0101       ).flags("..1..I..");
+            cycle(2, "Fetch opcode"               ).read(0x0102       ).flags("..1..IZ.");
+            cycle(3, "Fetch address"              ).read(0x0103       ).flags("..1..IZ.");
+            cycle(4, "Write to effective address" ).write(0x0001, 0x00).flags("..1..IZ.");
+            cycle(5, "Fetch opcode"               ).read(0x0104       ).flags("..1..IZ.");
+            cycle(6, "Fetch address"              ).read(0x0105       ).flags("..1..IZ.");
+            cycle(7, "Read from effective address").read(0x0001       ).flags("..1..IZ.");
+            cycle(8, "Write old value to address" ).write(0x0001, 0x00).flags("N.1..I..");
+            cycle(9, "Write new value to address" ).write(0x0001, 0xFF).flags("N.1..I..");
+        }
+    }
+
+    @Nested
+    class INC {
+        @Test
+        void testZeroPage() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA9); // LDA #02
+            memory(0x0101, 0x02);
+            memory(0x0102, 0x85); // STA $01
+            memory(0x0103, 0x01);
+            memory(0x0104, 0xE6); // INC $01
+            memory(0x0105, 0x01);
+
+            clock(10);
+
+            cycle(0, "Fetch opcode"               ).read(0x0100       );
+            cycle(1, "Fetch value"                ).read(0x0101       );
+            cycle(2, "Fetch opcode"               ).read(0x0102       );
+            cycle(3, "Fetch address"              ).read(0x0103       );
+            cycle(4, "Write to effective address" ).write(0x0001, 0x02);
+            cycle(5, "Fetch opcode"               ).read(0x0104       );
+            cycle(6, "Fetch address"              ).read(0x0105       );
+            cycle(7, "Read from effective address").read(0x0001       );
+            cycle(8, "Write old value to address" ).write(0x0001, 0x02);
+            cycle(9, "Write new value to address" ).write(0x0001, 0x03);
+        }
+
+        @Test
+        void testZeroPageX() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA9); // LDA #02
+            memory(0x0101, 0x02);
+            memory(0x0102, 0xA2); // LDX #01
+            memory(0x0103, 0x01);
+            memory(0x0104, 0x95); // STA $01,X
+            memory(0x0105, 0x01);
+            memory(0x0106, 0xF6); // INC $01,X
+            memory(0x0107, 0x01);
+
+            clock(14);
+
+            cycle(0,  "Fetch opcode"                ).read(0x0100       ).a(0x00).x(0x00);
+            cycle(1,  "Fetch value"                 ).read(0x0101       ).a(0x00).x(0x00);
+            cycle(2,  "Fetch opcode"                ).read(0x0102       ).a(0x02).x(0x00);
+            cycle(3,  "Fetch value"                 ).read(0x0103       ).a(0x02).x(0x00);
+            cycle(4,  "Fetch opcode"                ).read(0x0104       ).a(0x02).x(0x01);
+            cycle(5,  "Fetch address"               ).read(0x0105       ).a(0x02).x(0x01);
+            cycle(6,  "Read from address, add index").read(0x0001       ).a(0x02).x(0x01);
+            cycle(7,  "Write to address"            ).write(0x0002, 0x02).a(0x02).x(0x01);
+            cycle(8,  "Fetch opcode"                ).read(0x0106       ).a(0x02).x(0x01);
+            cycle(9,  "Fetch address"               ).read(0x0107       ).a(0x02).x(0x01);
+            cycle(10, "Read from address, add index").read(0x0001       ).a(0x02).x(0x01);
+            cycle(11, "Read from address"           ).read(0x0002       ).a(0x02).x(0x01);
+            cycle(12, "Write old value to address"  ).write(0x0002, 0x02).a(0x02).x(0x01);
+            cycle(13, "Write new value to address"  ).write(0x0002, 0x03).a(0x02).x(0x01);
+        }
+
+        @Test
+        void testAbsolute() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA9); // LDA #02
+            memory(0x0101, 0x02);
+            memory(0x0102, 0x8D); // STA $1234
+            memory(0x0103, 0x34);
+            memory(0x0104, 0x12);
+            memory(0x0105, 0xEE); // INC $1234
+            memory(0x0106, 0x34);
+            memory(0x0107, 0x12);
+
+            clock(12);
+
+            cycle(0,  "Fetch opcode"                ).read(0x0100       ).a(0x00);
+            cycle(1,  "Fetch value"                 ).read(0x0101       ).a(0x00);
+            cycle(2,  "Fetch opcode"                ).read(0x0102       ).a(0x02);
+            cycle(3,  "Fetch address low byte"      ).read(0x0103       ).a(0x02);
+            cycle(4,  "Fetch address high byte"     ).read(0x0104       ).a(0x02);
+            cycle(5,  "Write to effective address"  ).write(0x1234, 0x02).a(0x02);
+            cycle(6,  "Fetch opcode"                ).read(0x0105       ).a(0x02);
+            cycle(7,  "Fetch address low byte"      ).read(0x0106       ).a(0x02);
+            cycle(8,  "Fetch address high byte"     ).read(0x0107       ).a(0x02);
+            cycle(9,  "Read from effective address" ).read(0x1234       ).a(0x02);
+            cycle(10, "Write old value to address"  ).write(0x1234, 0x02).a(0x02);
+            cycle(11, "Write new value to address"  ).write(0x1234, 0x03).a(0x02);
+        }
+
+        @Test
+        void testAbsoluteX() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA9); // LDA #02
+            memory(0x0101, 0x02);
+            memory(0x0102, 0xA2); // LDX #01
+            memory(0x0103, 0x01);
+            memory(0x0104, 0x9D); // STA $1234,X
+            memory(0x0105, 0x34);
+            memory(0x0106, 0x12);
+            memory(0x0107, 0xFE); // INC $1234,X
+            memory(0x0108, 0x34);
+            memory(0x0109, 0x12);
+
+            clock(16);
+
+            cycle(0,  "Fetch opcode"                      ).read(0x0100       ).a(0x00).x(0x00);
+            cycle(1,  "Fetch value"                       ).read(0x0101       ).a(0x00).x(0x00);
+            cycle(2,  "Fetch opcode"                      ).read(0x0102       ).a(0x02).x(0x00);
+            cycle(3,  "Fetch value"                       ).read(0x0103       ).a(0x02).x(0x00);
+            cycle(4,  "Fetch opcode"                      ).read(0x0104       ).a(0x02).x(0x01);
+            cycle(5,  "Fetch address low byte"            ).read(0x0105       ).a(0x02).x(0x01);
+            cycle(6,  "Fetch address high byte, add index").read(0x0106       ).a(0x02).x(0x01);
+            cycle(7,  "Read from address"                 ).read(0x1235       ).a(0x02).x(0x01);
+            cycle(8,  "Write to address"                  ).write(0x1235, 0x02).a(0x02).x(0x01);
+            cycle(9,  "Fetch opcode"                      ).read(0x0107       ).a(0x02).x(0x01);
+            cycle(10, "Fetch address low byte"            ).read(0x0108       ).a(0x02).x(0x01);
+            cycle(11, "Fetch address high byte, add index").read(0x0109       ).a(0x02).x(0x01);
+            cycle(12, "Read from address"                 ).read(0x1235       ).a(0x02).x(0x01);
+            cycle(13, "Re-read from address"              ).read(0x1235       ).a(0x02).x(0x01);
+            cycle(14, "Write old value to address"        ).write(0x1235, 0x02).a(0x02).x(0x01);
+            cycle(15, "Write new value to address"        ).write(0x1235, 0x03).a(0x02).x(0x01);
+        }
+
+        @Test
+        void testZeroFlag() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA9); // LDA #FF
+            memory(0x0101, 0xFF);
+            memory(0x0102, 0x85); // STA $01
+            memory(0x0103, 0x01);
+            memory(0x0104, 0xE6); // INC $01
+            memory(0x0105, 0x01);
+
+            clock(10);
+
+            cycle(0, "Fetch opcode"               ).read(0x0100       ).flags("..1..I..");
+            cycle(1, "Fetch value"                ).read(0x0101       ).flags("..1..I..");
+            cycle(2, "Fetch opcode"               ).read(0x0102       ).flags("N.1..I..");
+            cycle(3, "Fetch address"              ).read(0x0103       ).flags("N.1..I..");
+            cycle(4, "Write to effective address" ).write(0x0001, 0xFF).flags("N.1..I..");
+            cycle(5, "Fetch opcode"               ).read(0x0104       ).flags("N.1..I..");
+            cycle(6, "Fetch address"              ).read(0x0105       ).flags("N.1..I..");
+            cycle(7, "Read from effective address").read(0x0001       ).flags("N.1..I..");
+            cycle(8, "Write old value to address" ).write(0x0001, 0xFF).flags("..1..IZ.");
+            cycle(9, "Write new value to address" ).write(0x0001, 0x00).flags("..1..IZ.");
+        }
+    }
+
+    @Nested
     class LDA {
         @Test
         void testImmediate() {
@@ -703,173 +1013,6 @@ class CpuTest {
             cycle(0, "Fetch opcode").read(0x0100).a(0x00).flags("..1..I..");
             cycle(1, "Fetch value" ).read(0x0101).a(0x00).flags("..1..I..");
             cycle(2, "Fetch opcode").read(0x0102).a(0x80).flags("N.1..I..");
-        }
-    }
-
-    @Nested
-    class DEC {
-        @Test
-        void testZeroPage() {
-            cpu.pc(0x0100);
-            memory(0x0100, 0xA9); // LDA #02
-            memory(0x0101, 0x02);
-            memory(0x0102, 0x85); // STA $01
-            memory(0x0103, 0x01);
-            memory(0x0104, 0xC6); // DEC $01
-            memory(0x0105, 0x01);
-
-            clock(10);
-
-            cycle(0, "Fetch opcode"               ).read(0x0100       );
-            cycle(1, "Fetch value"                ).read(0x0101       );
-            cycle(2, "Fetch opcode"               ).read(0x0102       );
-            cycle(3, "Fetch address"              ).read(0x0103       );
-            cycle(4, "Write to effective address" ).write(0x0001, 0x02);
-            cycle(5, "Fetch opcode"               ).read(0x0104       );
-            cycle(6, "Fetch address"              ).read(0x0105       );
-            cycle(7, "Read from effective address").read(0x0001       );
-            cycle(8, "Write old value to address" ).write(0x0001, 0x02);
-            cycle(9, "Write new value to address" ).write(0x0001, 0x01);
-        }
-
-        @Test
-        void testZeroPageX() {
-            cpu.pc(0x0100);
-            memory(0x0100, 0xA9); // LDA #02
-            memory(0x0101, 0x02);
-            memory(0x0102, 0xA2); // LDX #01
-            memory(0x0103, 0x01);
-            memory(0x0104, 0x95); // STA $01,X
-            memory(0x0105, 0x01);
-            memory(0x0106, 0xD6); // DEC $01,X
-            memory(0x0107, 0x01);
-
-            clock(14);
-
-            cycle(0,  "Fetch opcode"                ).read(0x0100       ).a(0x00).x(0x00);
-            cycle(1,  "Fetch value"                 ).read(0x0101       ).a(0x00).x(0x00);
-            cycle(2,  "Fetch opcode"                ).read(0x0102       ).a(0x02).x(0x00);
-            cycle(3,  "Fetch value"                 ).read(0x0103       ).a(0x02).x(0x00);
-            cycle(4,  "Fetch opcode"                ).read(0x0104       ).a(0x02).x(0x01);
-            cycle(5,  "Fetch address"               ).read(0x0105       ).a(0x02).x(0x01);
-            cycle(6,  "Read from address, add index").read(0x0001       ).a(0x02).x(0x01);
-            cycle(7,  "Write to address"            ).write(0x0002, 0x02).a(0x02).x(0x01);
-            cycle(8,  "Fetch opcode"                ).read(0x0106       ).a(0x02).x(0x01);
-            cycle(9,  "Fetch address"               ).read(0x0107       ).a(0x02).x(0x01);
-            cycle(10, "Read from address, add index").read(0x0001       ).a(0x02).x(0x01);
-            cycle(11, "Read from address"           ).read(0x0002       ).a(0x02).x(0x01);
-            cycle(12, "Write old value to address"  ).write(0x0002, 0x02).a(0x02).x(0x01);
-            cycle(13, "Write new value to address"  ).write(0x0002, 0x01).a(0x02).x(0x01);
-        }
-
-        @Test
-        void testAbsolute() {
-            cpu.pc(0x0100);
-            memory(0x0100, 0xA9); // LDA #02
-            memory(0x0101, 0x02);
-            memory(0x0102, 0x8D); // STA $1234
-            memory(0x0103, 0x34);
-            memory(0x0104, 0x12);
-            memory(0x0105, 0xCE); // DEC $1234
-            memory(0x0106, 0x34);
-            memory(0x0107, 0x12);
-
-            clock(12);
-
-            cycle(0,  "Fetch opcode"                ).read(0x0100       ).a(0x00);
-            cycle(1,  "Fetch value"                 ).read(0x0101       ).a(0x00);
-            cycle(2,  "Fetch opcode"                ).read(0x0102       ).a(0x02);
-            cycle(3,  "Fetch address low byte"      ).read(0x0103       ).a(0x02);
-            cycle(4,  "Fetch address high byte"     ).read(0x0104       ).a(0x02);
-            cycle(5,  "Write to effective address"  ).write(0x1234, 0x02).a(0x02);
-            cycle(6,  "Fetch opcode"                ).read(0x0105       ).a(0x02);
-            cycle(7,  "Fetch address low byte"      ).read(0x0106       ).a(0x02);
-            cycle(8,  "Fetch address high byte"     ).read(0x0107       ).a(0x02);
-            cycle(9,  "Read from effective address" ).read(0x1234       ).a(0x02);
-            cycle(10, "Write old value to address"  ).write(0x1234, 0x02).a(0x02);
-            cycle(11, "Write new value to address"  ).write(0x1234, 0x01).a(0x02);
-        }
-
-        @Test
-        void testAbsoluteX() {
-            cpu.pc(0x0100);
-            memory(0x0100, 0xA9); // LDA #02
-            memory(0x0101, 0x02);
-            memory(0x0102, 0xA2); // LDX #01
-            memory(0x0103, 0x01);
-            memory(0x0104, 0x9D); // STA $1234,X
-            memory(0x0105, 0x34);
-            memory(0x0106, 0x12);
-            memory(0x0107, 0xDE); // DEC $1234,X
-            memory(0x0108, 0x34);
-            memory(0x0109, 0x12);
-
-            clock(16);
-
-            cycle(0,  "Fetch opcode"                      ).read(0x0100       ).a(0x00).x(0x00);
-            cycle(1,  "Fetch value"                       ).read(0x0101       ).a(0x00).x(0x00);
-            cycle(2,  "Fetch opcode"                      ).read(0x0102       ).a(0x02).x(0x00);
-            cycle(3,  "Fetch value"                       ).read(0x0103       ).a(0x02).x(0x00);
-            cycle(4,  "Fetch opcode"                      ).read(0x0104       ).a(0x02).x(0x01);
-            cycle(5,  "Fetch address low byte"            ).read(0x0105       ).a(0x02).x(0x01);
-            cycle(6,  "Fetch address high byte, add index").read(0x0106       ).a(0x02).x(0x01);
-            cycle(7,  "Read from address"                 ).read(0x1235       ).a(0x02).x(0x01);
-            cycle(8,  "Write to address"                  ).write(0x1235, 0x02).a(0x02).x(0x01);
-            cycle(9,  "Fetch opcode"                      ).read(0x0107       ).a(0x02).x(0x01);
-            cycle(10, "Fetch address low byte"            ).read(0x0108       ).a(0x02).x(0x01);
-            cycle(11, "Fetch address high byte, add index").read(0x0109       ).a(0x02).x(0x01);
-            cycle(12, "Read from address"                 ).read(0x1235       ).a(0x02).x(0x01);
-            cycle(13, "Re-read from address"              ).read(0x1235       ).a(0x02).x(0x01);
-            cycle(14, "Write old value to address"        ).write(0x1235, 0x02).a(0x02).x(0x01);
-            cycle(15, "Write new value to address"        ).write(0x1235, 0x01).a(0x02).x(0x01);
-        }
-
-        @Test
-        void testZeroFlag() {
-            cpu.pc(0x0100);
-            memory(0x0100, 0xA9); // LDA #01
-            memory(0x0101, 0x01);
-            memory(0x0102, 0x85); // STA $01
-            memory(0x0103, 0x01);
-            memory(0x0104, 0xC6); // DEC $01
-            memory(0x0105, 0x01);
-
-            clock(10);
-
-            cycle(0, "Fetch opcode"               ).read(0x0100       ).flags("..1..I..");
-            cycle(1, "Fetch value"                ).read(0x0101       ).flags("..1..I..");
-            cycle(2, "Fetch opcode"               ).read(0x0102       ).flags("..1..I..");
-            cycle(3, "Fetch address"              ).read(0x0103       ).flags("..1..I..");
-            cycle(4, "Write to effective address" ).write(0x0001, 0x01).flags("..1..I..");
-            cycle(5, "Fetch opcode"               ).read(0x0104       ).flags("..1..I..");
-            cycle(6, "Fetch address"              ).read(0x0105       ).flags("..1..I..");
-            cycle(7, "Read from effective address").read(0x0001       ).flags("..1..I..");
-            cycle(8, "Write old value to address" ).write(0x0001, 0x01).flags("..1..IZ.");
-            cycle(9, "Write new value to address" ).write(0x0001, 0x00).flags("..1..IZ.");
-        }
-
-        @Test
-        void testNegativeFlag() {
-            cpu.pc(0x0100);
-            memory(0x0100, 0xA9); // LDA #00
-            memory(0x0101, 0x00);
-            memory(0x0102, 0x85); // STA $01
-            memory(0x0103, 0x01);
-            memory(0x0104, 0xC6); // DEC $01
-            memory(0x0105, 0x01);
-
-            clock(10);
-
-            cycle(0, "Fetch opcode"               ).read(0x0100       ).flags("..1..I..");
-            cycle(1, "Fetch value"                ).read(0x0101       ).flags("..1..I..");
-            cycle(2, "Fetch opcode"               ).read(0x0102       ).flags("..1..IZ.");
-            cycle(3, "Fetch address"              ).read(0x0103       ).flags("..1..IZ.");
-            cycle(4, "Write to effective address" ).write(0x0001, 0x00).flags("..1..IZ.");
-            cycle(5, "Fetch opcode"               ).read(0x0104       ).flags("..1..IZ.");
-            cycle(6, "Fetch address"              ).read(0x0105       ).flags("..1..IZ.");
-            cycle(7, "Read from effective address").read(0x0001       ).flags("..1..IZ.");
-            cycle(8, "Write old value to address" ).write(0x0001, 0x00).flags("N.1..I..");
-            cycle(9, "Write new value to address" ).write(0x0001, 0xFF).flags("N.1..I..");
         }
     }
 
