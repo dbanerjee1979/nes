@@ -383,8 +383,11 @@ public class Cpu {
         public State clock(Runnable operation, OperationType operationType) {
             return switch (state) {
                 case FETCH_OPCODE -> State.FETCH_ADDRESS;
-                case FETCH_ADDRESS -> fetchAddress(
-                        operationType == Write ? State.DATA_AVAILABLE : State.READ_EFFECTIVE_ADDRESS,
+                case FETCH_ADDRESS -> fetchAddress(operationType == Write ?
+                                // For write instructions, the data is already available in a register
+                                State.DATA_AVAILABLE :
+                                // For read instructions, the data becomes available in the next cycle after fetching from memory
+                                State.READ_EFFECTIVE_ADDRESS,
                         Cpu.this::nextPC);
                 case READ_EFFECTIVE_ADDRESS -> readEffectiveAddress(State.DATA_AVAILABLE);
                 case DATA_AVAILABLE -> executeOperation(operation, operationType);
@@ -406,8 +409,12 @@ public class Cpu {
             return switch (state) {
                 case FETCH_OPCODE -> State.FETCH_ADDRESS;
                 case FETCH_ADDRESS -> fetchAddress(State.READ_EFFECTIVE_ADDRESS_ADD_INDEX, Cpu.this::nextPC);
-                case READ_EFFECTIVE_ADDRESS_ADD_INDEX -> readEffectiveAddressAddIndex(
-                        operationType == Write ? State.DATA_AVAILABLE : State.READ_EFFECTIVE_ADDRESS, index.get());
+                case READ_EFFECTIVE_ADDRESS_ADD_INDEX -> readEffectiveAddressAddIndex(operationType == Write ?
+                        // For write instructions, the data is already available in a register
+                        State.DATA_AVAILABLE :
+                        // For read instructions, the data becomes available in the next cycle after fetching from memory
+                        State.READ_EFFECTIVE_ADDRESS,
+                        index.get());
                 case READ_EFFECTIVE_ADDRESS -> readEffectiveAddress(State.DATA_AVAILABLE);
                 case DATA_AVAILABLE -> executeOperation(operation, operationType);
                 case STORE_RESULT -> storeResult();
@@ -422,8 +429,12 @@ public class Cpu {
             return switch (state) {
                 case FETCH_OPCODE -> State.FETCH_ADDRESS;
                 case FETCH_ADDRESS -> fetchAddress(State.FETCH_EFFECTIVE_ADDRESS_HIGH, Cpu.this::nextPC);
-                case FETCH_EFFECTIVE_ADDRESS_HIGH -> fetchAddressHigh(
-                        operationType == Write ? State.DATA_AVAILABLE : State.READ_EFFECTIVE_ADDRESS, Cpu.this::nextPC);
+                case FETCH_EFFECTIVE_ADDRESS_HIGH -> fetchAddressHigh(operationType == Write ?
+                        // For write instructions, the data is already available in a register
+                        State.DATA_AVAILABLE :
+                        // For read instructions, the data becomes available in the next cycle after fetching from memory
+                        State.READ_EFFECTIVE_ADDRESS,
+                        Cpu.this::nextPC);
                 case READ_EFFECTIVE_ADDRESS -> readEffectiveAddress(State.DATA_AVAILABLE);
                 case DATA_AVAILABLE -> executeOperation(operation, operationType);
                 case STORE_RESULT -> storeResult();
@@ -446,13 +457,20 @@ public class Cpu {
                 case FETCH_ADDRESS -> fetchAddress(State.FETCH_EFFECTIVE_ADDRESS_HIGH_ADD_INDEX, Cpu.this::nextPC);
                 case FETCH_EFFECTIVE_ADDRESS_HIGH_ADD_INDEX -> fetchAddressHighAddIndex(Cpu.this::nextPC, this.index.get());
                 case READ_EFFECTIVE_ADDRESS -> readEffectiveAddress(operationType == ReadWrite ?
-                        State.REREAD_EFFECTIVE_ADDRESS : State.DATA_AVAILABLE);
+                        // For R/W instructions, the CPU loads the effective address twice, since the first time
+                        // might have crossed the page boundary
+                        State.REREAD_EFFECTIVE_ADDRESS :
+                        // Otherwise the data is available
+                        State.DATA_AVAILABLE);
                 case REREAD_EFFECTIVE_ADDRESS -> readEffectiveAddress(State.DATA_AVAILABLE);
                 case READ_EFFECTIVE_ADDRESS_FIX_HIGH -> readEffectiveAddressFixHigh(switch (operationType) {
-                            case Write -> State.DATA_AVAILABLE;
-                            case Read -> State.READ_EFFECTIVE_ADDRESS;
-                            case ReadWrite -> State.REREAD_EFFECTIVE_ADDRESS;
-                        });
+                        // For write instructions, the data is already available in a register
+                        case Write -> State.DATA_AVAILABLE;
+                        // For read instructions, the data becomes available in the next cycle after fetching from memory
+                        case Read -> State.READ_EFFECTIVE_ADDRESS;
+                        // For R/W instructions, the effective address has to be loaded again with the fixed address
+                        case ReadWrite -> State.REREAD_EFFECTIVE_ADDRESS;
+                    });
                 case DATA_AVAILABLE -> executeOperation(operation, operationType);
                 case STORE_RESULT -> storeResult();
                 default -> throw new IllegalStateException();
@@ -468,8 +486,11 @@ public class Cpu {
                 case FETCH_POINTER -> fetchPointer(State.READ_POINTER_ADD_INDEX);
                 case READ_POINTER_ADD_INDEX -> readPointerAddIndex();
                 case FETCH_ADDRESS -> fetchAddress(State.FETCH_EFFECTIVE_ADDRESS_HIGH, Cpu.this::nextPointer);
-                case FETCH_EFFECTIVE_ADDRESS_HIGH -> fetchAddressHigh(
-                        operationType == Read ? State.READ_EFFECTIVE_ADDRESS : State.DATA_AVAILABLE,
+                case FETCH_EFFECTIVE_ADDRESS_HIGH -> fetchAddressHigh(operationType == Read ?
+                                // For read instructions, the data becomes available in the next cycle after fetching from memory
+                                State.READ_EFFECTIVE_ADDRESS :
+                                // For write instructions, the data is already available in a register
+                                State.DATA_AVAILABLE,
                         Cpu.this::nextPointer);
                 case READ_EFFECTIVE_ADDRESS -> readEffectiveAddress(State.DATA_AVAILABLE);
                 case DATA_AVAILABLE -> executeOperation(operation, operationType);
@@ -487,8 +508,11 @@ public class Cpu {
                 case FETCH_ADDRESS -> fetchAddress(State.FETCH_EFFECTIVE_ADDRESS_HIGH_ADD_INDEX, Cpu.this::nextPointer);
                 case FETCH_EFFECTIVE_ADDRESS_HIGH_ADD_INDEX -> fetchAddressHighAddIndex(Cpu.this::nextPointer, y);
                 case READ_EFFECTIVE_ADDRESS -> readEffectiveAddress(State.DATA_AVAILABLE);
-                case READ_EFFECTIVE_ADDRESS_FIX_HIGH -> readEffectiveAddressFixHigh(
-                        operationType == Read ? State.READ_EFFECTIVE_ADDRESS : State.DATA_AVAILABLE);
+                case READ_EFFECTIVE_ADDRESS_FIX_HIGH -> readEffectiveAddressFixHigh(operationType == Read ?
+                        // For read instructions, the data becomes available in the next cycle after fetching from memory
+                        State.READ_EFFECTIVE_ADDRESS :
+                        // For write instructions, the data is already available in a register
+                        State.DATA_AVAILABLE);
                 case DATA_AVAILABLE -> executeOperation(operation, operationType);
                 default -> throw new IllegalStateException();
             };
@@ -500,6 +524,7 @@ public class Cpu {
         public State clock(Runnable operation, OperationType operationType) {
             return switch (state) {
                 case FETCH_OPCODE -> State.FETCH_BOGUS_INSTRUCTION;
+                // CPU requires minimum 2 cycles per operation, so it does a bogus fetch of PC
                 case FETCH_BOGUS_INSTRUCTION -> fetchBogusInstruction();
                 case DATA_AVAILABLE -> executeOperationStoreAccumulator(operation, operationType);
                 default -> throw new IllegalStateException();
