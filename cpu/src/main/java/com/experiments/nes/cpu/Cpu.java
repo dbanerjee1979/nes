@@ -65,6 +65,15 @@ public class Cpu {
         AccumulatorMode accumulatorMode = new AccumulatorMode();
 
         operation(0x00, new BreakOperation());
+        // AND
+        operation(0x29, new StandardOperation(immediateMode, Read, this::and));
+        operation(0x25, new StandardOperation(zeroPageMode, Read, this::and));
+        operation(0x35, new StandardOperation(zeroPageXMode, Read, this::and));
+        operation(0x2D, new StandardOperation(absoluteMode, Read, this::and));
+        operation(0x3D, new StandardOperation(absoluteXMode, Read, this::and));
+        operation(0x39, new StandardOperation(absoluteYMode, Read, this::and));
+        operation(0x21, new StandardOperation(indexedIndirectMode, Read, this::and));
+        operation(0x31, new StandardOperation(indirectIndexedMode, Read, this::and));
         // ASL
         operation(0x0A, new StandardOperation(accumulatorMode, Read, this::leftShift));
         operation(0x06, new StandardOperation(zeroPageMode, ReadWrite, this::leftShift));
@@ -437,6 +446,17 @@ public class Cpu {
 
     private void xor() {
         this.a = (byte) (this.a ^ this.data);
+        this.p = (byte) (this.p & ~(Flag.Negative.mask() | Flag.Zero.mask()));
+        if ((this.a & 0x00FF) == 0) {
+            this.p = Flag.Zero.set(this.p);
+        }
+        if ((this.a & 0x0080) != 0) {
+            this.p = Flag.Negative.set(this.p);
+        }
+    }
+
+    private void and() {
+        this.a = (byte) (this.a & this.data);
         this.p = (byte) (this.p & ~(Flag.Negative.mask() | Flag.Zero.mask()));
         if ((this.a & 0x00FF) == 0) {
             this.p = Flag.Zero.set(this.p);
