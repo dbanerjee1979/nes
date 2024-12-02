@@ -71,6 +71,11 @@ public class Cpu {
         operation(0x16, new StandardOperation(zeroPageXMode, ReadWrite, this::leftShift));
         operation(0x0E, new StandardOperation(absoluteMode, ReadWrite, this::leftShift));
         operation(0x1E, new StandardOperation(absoluteXMode, ReadWrite, this::leftShift));
+        // DEC
+        operation(0xC6, new StandardOperation(zeroPageMode, ReadWrite, this::decrement));
+        operation(0xD6, new StandardOperation(zeroPageXMode, ReadWrite, this::decrement));
+        operation(0xCE, new StandardOperation(absoluteMode, ReadWrite, this::decrement));
+        operation(0xDE, new StandardOperation(absoluteXMode, ReadWrite, this::decrement));
         // LDA
         operation(0xA9, new StandardOperation(immediateMode, Read, this::loadA));
         operation(0xA5, new StandardOperation(zeroPageMode, Read, this::loadA));
@@ -392,6 +397,17 @@ public class Cpu {
             this.p = Flag.Zero.set(this.p);
         }
         this.data = (byte) result;
+    }
+
+    private void decrement() {
+        this.data--;
+        this.p = (byte) (this.p & ~(Flag.Negative.mask() | Flag.Zero.mask()));
+        if ((this.data & 0x00FF) == 0) {
+            this.p = Flag.Zero.set(this.p);
+        }
+        if ((this.data & 0x0080) != 0) {
+            this.p = Flag.Negative.set(this.p);
+        }
     }
 
     @FunctionalInterface
