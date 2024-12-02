@@ -76,6 +76,15 @@ public class Cpu {
         operation(0xD6, new StandardOperation(zeroPageXMode, ReadWrite, this::decrement));
         operation(0xCE, new StandardOperation(absoluteMode, ReadWrite, this::decrement));
         operation(0xDE, new StandardOperation(absoluteXMode, ReadWrite, this::decrement));
+        // EOR
+        operation(0x49, new StandardOperation(immediateMode, Read, this::xor));
+        operation(0x45, new StandardOperation(zeroPageMode, Read, this::xor));
+        operation(0x55, new StandardOperation(zeroPageXMode, Read, this::xor));
+        operation(0x4D, new StandardOperation(absoluteMode, Read, this::xor));
+        operation(0x5D, new StandardOperation(absoluteXMode, Read, this::xor));
+        operation(0x59, new StandardOperation(absoluteYMode, Read, this::xor));
+        operation(0x41, new StandardOperation(indexedIndirectMode, Read, this::xor));
+        operation(0x51, new StandardOperation(indirectIndexedMode, Read, this::xor));
         // INC
         operation(0xE6, new StandardOperation(zeroPageMode, ReadWrite, this::increment));
         operation(0xF6, new StandardOperation(zeroPageXMode, ReadWrite, this::increment));
@@ -422,6 +431,17 @@ public class Cpu {
             this.p = Flag.Zero.set(this.p);
         }
         if ((this.data & 0x0080) != 0) {
+            this.p = Flag.Negative.set(this.p);
+        }
+    }
+
+    private void xor() {
+        this.a = (byte) (this.a ^ this.data);
+        this.p = (byte) (this.p & ~(Flag.Negative.mask() | Flag.Zero.mask()));
+        if ((this.a & 0x00FF) == 0) {
+            this.p = Flag.Zero.set(this.p);
+        }
+        if ((this.a & 0x0080) != 0) {
             this.p = Flag.Negative.set(this.p);
         }
     }
