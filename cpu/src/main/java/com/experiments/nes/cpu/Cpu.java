@@ -26,6 +26,14 @@ public class Cpu {
         public byte set(byte p) {
             return (byte) (p | mask);
         }
+
+        public byte set(byte p, boolean isSet) {
+            p = (byte) (p & ~mask);
+            if (isSet) {
+                p |= mask;
+            }
+            return p;
+        }
     }
 
     enum State {
@@ -335,6 +343,12 @@ public class Cpu {
         return State.FETCH_OPCODE;
     }
 
+    private void setZeroNegativeFlags(byte value) {
+        this.p = (byte) (this.p & ~(Flag.Zero.mask() | Flag.Negative.mask()));
+        this.p = Flag.Zero.set(this.p, value == 0);
+        this.p = Flag.Negative.set(this.p, (value & 0x80) != 0);
+    }
+
     private void loadA() {
         load(this::a);
     }
@@ -349,13 +363,7 @@ public class Cpu {
 
     private void load(ByteConsumer register) {
         register.accept(this.data);
-        this.p = (byte) (this.p & ~(Flag.Zero.mask() | Flag.Negative.mask()));
-        if (this.data == 0) {
-            this.p = Flag.Zero.set(this.p);
-        }
-        if ((this.data & 0x80) != 0) {
-            this.p = Flag.Negative.set(this.p);
-        }
+        setZeroNegativeFlags(this.data);
     }
 
     private void storeA() {
@@ -372,118 +380,59 @@ public class Cpu {
 
     private void leftShift() {
         int result = this.data << 1;
-        this.p = (byte) (this.p & ~(Flag.Carry.mask() | Flag.Zero.mask() | Flag.Negative.mask()));
-        if ((result & 0xFF00) != 0) {
-            this.p = Flag.Carry.set(this.p);
-        }
-        if ((result & 0x0080) != 0) {
-            this.p = Flag.Negative.set(this.p);
-        }
-        if ((result & 0x00FF) == 0) {
-            this.p = Flag.Zero.set(this.p);
-        }
         this.data = (byte) result;
+        setZeroNegativeFlags(this.data);
+        this.p = Flag.Carry.set(this.p, (result & 0xFF00) != 0);
     }
 
     private void rightShift() {
         int bit0 = this.data & 0x01;
         // Undo sign extend by clearing bit 7 (sign bit)
         int result = (this.data >> 1) & 0x007F;
-        this.p = (byte) (this.p & ~(Flag.Carry.mask() | Flag.Zero.mask()));
-        if (bit0 != 0) {
-            this.p = Flag.Carry.set(this.p);
-        }
-        if ((result & 0x00FF) == 0) {
-            this.p = Flag.Zero.set(this.p);
-        }
         this.data = (byte) result;
+        setZeroNegativeFlags(this.data);
+        this.p = Flag.Carry.set(this.p, bit0 != 0);
     }
 
     private void rotateLeft() {
         int bit7 = this.data & 0x80;
         int result = (this.data << 1) | (this.p & Flag.Carry.mask());
-        this.p = (byte) (this.p & ~(Flag.Carry.mask() | Flag.Negative.mask() | Flag.Zero.mask()));
-        if (bit7 != 0) {
-            this.p = Flag.Carry.set(this.p);
-        }
-        if ((result & 0x0080) != 0) {
-            this.p = Flag.Negative.set(this.p);
-        }
-        if ((result & 0x00FF) == 0) {
-            this.p = Flag.Zero.set(this.p);
-        }
         this.data = (byte) result;
+        setZeroNegativeFlags(this.data);
+        this.p = Flag.Carry.set(this.p, bit7 != 0);
     }
 
     private void rotateRight() {
         int bit0 = this.data & 0x01;
         int result = (this.data >> 1) | ((this.p & Flag.Carry.mask()) << 7);
-        this.p = (byte) (this.p & ~(Flag.Carry.mask() | Flag.Negative.mask() | Flag.Zero.mask()));
-        if (bit0 != 0) {
-            this.p = Flag.Carry.set(this.p);
-        }
-        if ((result & 0x0080) != 0) {
-            this.p = Flag.Negative.set(this.p);
-        }
-        if ((result & 0x00FF) == 0) {
-            this.p = Flag.Zero.set(this.p);
-        }
         this.data = (byte) result;
+        setZeroNegativeFlags(this.data);
+        this.p = Flag.Carry.set(this.p, bit0 != 0);
     }
 
     private void decrement() {
         this.data--;
-        this.p = (byte) (this.p & ~(Flag.Negative.mask() | Flag.Zero.mask()));
-        if ((this.data & 0x00FF) == 0) {
-            this.p = Flag.Zero.set(this.p);
-        }
-        if ((this.data & 0x0080) != 0) {
-            this.p = Flag.Negative.set(this.p);
-        }
+        setZeroNegativeFlags(this.data);
     }
 
     private void increment() {
         this.data++;
-        this.p = (byte) (this.p & ~(Flag.Negative.mask() | Flag.Zero.mask()));
-        if ((this.data & 0x00FF) == 0) {
-            this.p = Flag.Zero.set(this.p);
-        }
-        if ((this.data & 0x0080) != 0) {
-            this.p = Flag.Negative.set(this.p);
-        }
+        setZeroNegativeFlags(this.data);
     }
 
     private void xor() {
         this.a = (byte) (this.a ^ this.data);
-        this.p = (byte) (this.p & ~(Flag.Negative.mask() | Flag.Zero.mask()));
-        if ((this.a & 0x00FF) == 0) {
-            this.p = Flag.Zero.set(this.p);
-        }
-        if ((this.a & 0x0080) != 0) {
-            this.p = Flag.Negative.set(this.p);
-        }
+        setZeroNegativeFlags(this.a);
     }
 
     private void and() {
         this.a = (byte) (this.a & this.data);
-        this.p = (byte) (this.p & ~(Flag.Negative.mask() | Flag.Zero.mask()));
-        if ((this.a & 0x00FF) == 0) {
-            this.p = Flag.Zero.set(this.p);
-        }
-        if ((this.a & 0x0080) != 0) {
-            this.p = Flag.Negative.set(this.p);
-        }
+        setZeroNegativeFlags(this.a);
     }
 
     private void or() {
         this.a = (byte) (this.a | this.data);
-        this.p = (byte) (this.p & ~(Flag.Negative.mask() | Flag.Zero.mask()));
-        if ((this.a & 0x00FF) == 0) {
-            this.p = Flag.Zero.set(this.p);
-        }
-        if ((this.a & 0x0080) != 0) {
-            this.p = Flag.Negative.set(this.p);
-        }
+        setZeroNegativeFlags(this.a);
     }
 
     @FunctionalInterface
