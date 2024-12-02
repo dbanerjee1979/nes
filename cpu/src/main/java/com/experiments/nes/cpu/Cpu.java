@@ -126,6 +126,15 @@ public class Cpu {
         operation(0x56, new StandardOperation(zeroPageXMode, ReadWrite, this::rightShift));
         operation(0x4E, new StandardOperation(absoluteMode, ReadWrite, this::rightShift));
         operation(0x5E, new StandardOperation(absoluteXMode, ReadWrite, this::rightShift));
+        // OR
+        operation(0x09, new StandardOperation(immediateMode, Read, this::or));
+        operation(0x05, new StandardOperation(zeroPageMode, Read, this::or));
+        operation(0x15, new StandardOperation(zeroPageXMode, Read, this::or));
+        operation(0x0D, new StandardOperation(absoluteMode, Read, this::or));
+        operation(0x1D, new StandardOperation(absoluteXMode, Read, this::or));
+        operation(0x19, new StandardOperation(absoluteYMode, Read, this::or));
+        operation(0x01, new StandardOperation(indexedIndirectMode, Read, this::or));
+        operation(0x11, new StandardOperation(indirectIndexedMode, Read, this::or));
         // ROL
         operation(0x2A, new StandardOperation(accumulatorMode, Read, this::rotateLeft));
         operation(0x26, new StandardOperation(zeroPageMode, ReadWrite, this::rotateLeft));
@@ -457,6 +466,17 @@ public class Cpu {
 
     private void and() {
         this.a = (byte) (this.a & this.data);
+        this.p = (byte) (this.p & ~(Flag.Negative.mask() | Flag.Zero.mask()));
+        if ((this.a & 0x00FF) == 0) {
+            this.p = Flag.Zero.set(this.p);
+        }
+        if ((this.a & 0x0080) != 0) {
+            this.p = Flag.Negative.set(this.p);
+        }
+    }
+
+    private void or() {
+        this.a = (byte) (this.a | this.data);
         this.p = (byte) (this.p & ~(Flag.Negative.mask() | Flag.Zero.mask()));
         if ((this.a & 0x00FF) == 0) {
             this.p = Flag.Zero.set(this.p);
