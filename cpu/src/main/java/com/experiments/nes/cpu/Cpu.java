@@ -104,6 +104,12 @@ public class Cpu {
         operation(0x36, new StandardOperation(zeroPageXMode, ReadWrite, this::rotateLeft));
         operation(0x2E, new StandardOperation(absoluteMode, ReadWrite, this::rotateLeft));
         operation(0x3E, new StandardOperation(absoluteXMode, ReadWrite, this::rotateLeft));
+        // ROR
+        operation(0x6A, new StandardOperation(accumulatorMode, Read, this::rotateRight));
+        operation(0x66, new StandardOperation(zeroPageMode, ReadWrite, this::rotateRight));
+        operation(0x76, new StandardOperation(zeroPageXMode, ReadWrite, this::rotateRight));
+        operation(0x6E, new StandardOperation(absoluteMode, ReadWrite, this::rotateRight));
+        operation(0x7E, new StandardOperation(absoluteXMode, ReadWrite, this::rotateRight));
         // STA
         operation(0x85, new StandardOperation(zeroPageMode, Write, this::storeA));
         operation(0x95, new StandardOperation(zeroPageXMode, Write, this::storeA));
@@ -361,6 +367,22 @@ public class Cpu {
         int result = (this.data << 1) | (this.p & Flag.Carry.mask());
         this.p = (byte) (this.p & ~(Flag.Carry.mask() | Flag.Negative.mask() | Flag.Zero.mask()));
         if (bit7 != 0) {
+            this.p = Flag.Carry.set(this.p);
+        }
+        if ((result & 0x0080) != 0) {
+            this.p = Flag.Negative.set(this.p);
+        }
+        if ((result & 0x00FF) == 0) {
+            this.p = Flag.Zero.set(this.p);
+        }
+        this.data = (byte) result;
+    }
+
+    private void rotateRight() {
+        int bit0 = this.data & 0x01;
+        int result = (this.data >> 1) | ((this.p & Flag.Carry.mask()) << 7);
+        this.p = (byte) (this.p & ~(Flag.Carry.mask() | Flag.Negative.mask() | Flag.Zero.mask()));
+        if (bit0 != 0) {
             this.p = Flag.Carry.set(this.p);
         }
         if ((result & 0x0080) != 0) {
