@@ -294,6 +294,7 @@ public class Cpu {
 
     private void load(ByteConsumer register) {
         register.accept(this.data);
+        this.p = (byte) (this.p & ~(Flag.Zero.mask() | Flag.Negative.mask()));
         if (this.data == 0) {
             this.p = Flag.Zero.set(this.p);
         }
@@ -316,6 +317,16 @@ public class Cpu {
 
     private void leftShift() {
         int result = this.data << 1;
+        this.p = (byte) (this.p & ~(Flag.Carry.mask() | Flag.Zero.mask() | Flag.Negative.mask()));
+        if ((result & 0xFF00) != 0) {
+            this.p = Flag.Carry.set(this.p);
+        }
+        if ((result & 0x0080) != 0) {
+            this.p = Flag.Negative.set(this.p);
+        }
+        if ((result & 0x00FF) == 0) {
+            this.p = Flag.Zero.set(this.p);
+        }
         this.data = (byte) result;
     }
 

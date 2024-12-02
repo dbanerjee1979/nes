@@ -150,7 +150,7 @@ class CpuTest {
     @Nested
     class ASL {
         @Test
-        void testImmediate() {
+        void testAccumulator() {
             cpu.pc(0x0100);
             memory(0x0100, 0xA9); // LDA #01
             memory(0x0101, 0x01);
@@ -313,6 +313,54 @@ class CpuTest {
             cycle(13, "Re-read from address"              ).read(0x1301       ).a(0x01).x(0x02);
             cycle(14, "Write old value to address"        ).write(0x1301, 0x01).a(0x01).x(0x02);
             cycle(15, "Write new value to address"        ).write(0x1301, 0x02).a(0x01).x(0x02);
+        }
+
+        @Test
+        void testCarryFlag() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA9); // LDA #81
+            memory(0x0101, 0x81);
+            memory(0x0102, 0x0A); // ASL A
+
+            clock(5);
+
+            cycle(0, "Fetch opcode"                      ).read(0x0100).a(0x00).flags("..1..I..");
+            cycle(1, "Fetch value"                       ).read(0x0101).a(0x00).flags("..1..I..");
+            cycle(2, "Fetch opcode"                      ).read(0x0102).a(0x81).flags("N.1..I..");
+            cycle(3, "Fetch next instruction, throw away").read(0x0103).a(0x81).flags("N.1..I..");
+            cycle(4, "Fetch opcode"                      ).read(0x0103).a(0x02).flags("..1..I.C");
+        }
+
+        @Test
+        void testNegativeFlag() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA9); // LDA #40
+            memory(0x0101, 0x40);
+            memory(0x0102, 0x0A); // ASL A
+
+            clock(5);
+
+            cycle(0, "Fetch opcode"                      ).read(0x0100).a(0x00).flags("..1..I..");
+            cycle(1, "Fetch value"                       ).read(0x0101).a(0x00).flags("..1..I..");
+            cycle(2, "Fetch opcode"                      ).read(0x0102).a(0x40).flags("..1..I..");
+            cycle(3, "Fetch next instruction, throw away").read(0x0103).a(0x40).flags("..1..I..");
+            cycle(4, "Fetch opcode"                      ).read(0x0103).a(0x80).flags("N.1..I..");
+        }
+
+        @Test
+        void testZeroFlag() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA9); // LDA #80
+            memory(0x0101, 0x80);
+            memory(0x0102, 0x0A); // ASL A
+
+            clock(5);
+
+            cycle(0, "Fetch opcode"                      ).read(0x0100).a(0x00).flags("..1..I..");
+            cycle(1, "Fetch value"                       ).read(0x0101).a(0x00).flags("..1..I..");
+            cycle(2, "Fetch opcode"                      ).read(0x0102).a(0x80).flags("N.1..I..");
+            cycle(3, "Fetch next instruction, throw away").read(0x0103).a(0x80).flags("N.1..I..");
+            cycle(4, "Fetch opcode"                      ).read(0x0103).a(0x00).flags("..1..IZC");
         }
     }
 
