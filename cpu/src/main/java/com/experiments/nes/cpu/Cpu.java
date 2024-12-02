@@ -92,6 +92,12 @@ public class Cpu {
         operation(0xB4, new StandardOperation(zeroPageXMode, Read, this::loadY));
         operation(0xAC, new StandardOperation(absoluteMode, Read, this::loadY));
         operation(0xBC, new StandardOperation(absoluteXMode, Read, this::loadY));
+        // LSR
+        operation(0x4A, new StandardOperation(accumulatorMode, Read, this::rightShift));
+        operation(0x46, new StandardOperation(zeroPageMode, ReadWrite, this::rightShift));
+        operation(0x56, new StandardOperation(zeroPageXMode, ReadWrite, this::rightShift));
+        operation(0x4E, new StandardOperation(absoluteMode, ReadWrite, this::rightShift));
+        operation(0x5E, new StandardOperation(absoluteXMode, ReadWrite, this::rightShift));
         // STA
         operation(0x85, new StandardOperation(zeroPageMode, Write, this::storeA));
         operation(0x95, new StandardOperation(zeroPageXMode, Write, this::storeA));
@@ -323,6 +329,20 @@ public class Cpu {
         }
         if ((result & 0x0080) != 0) {
             this.p = Flag.Negative.set(this.p);
+        }
+        if ((result & 0x00FF) == 0) {
+            this.p = Flag.Zero.set(this.p);
+        }
+        this.data = (byte) result;
+    }
+
+    private void rightShift() {
+        int bit0 = this.data & 0x01;
+        // Undo sign extend by clearing bit 7 (sign bit)
+        int result = (this.data >> 1) & 0x007F;
+        this.p = (byte) (this.p & ~(Flag.Carry.mask() | Flag.Zero.mask()));
+        if (bit0 != 0) {
+            this.p = Flag.Carry.set(this.p);
         }
         if ((result & 0x00FF) == 0) {
             this.p = Flag.Zero.set(this.p);
