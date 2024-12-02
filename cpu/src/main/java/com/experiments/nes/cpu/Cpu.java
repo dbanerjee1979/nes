@@ -29,7 +29,7 @@ public class Cpu {
     }
 
     enum State {
-        FETCH_OPCODE, FETCH_OPCODE_IN_SAME_CYCLE, FETCH_VALUE, FETCH_ADDRESS, READ_EFFECTIVE_ADDRESS,
+        FETCH_OPCODE, FETCH_OPCODE_IN_SAME_CYCLE, FETCH_VALUE, FETCH_ADDRESS, READ_EFFECTIVE_ADDRESS, REREAD_EFFECTIVE_ADDRESS,
         READ_EFFECTIVE_ADDRESS_ADD_INDEX, FETCH_EFFECTIVE_ADDRESS_HIGH, FETCH_EFFECTIVE_ADDRESS_HIGH_ADD_INDEX,
         READ_EFFECTIVE_ADDRESS_FIX_HIGH, FETCH_POINTER, READ_POINTER_ADD_INDEX, FETCH_BOGUS_INSTRUCTION, STORE_RESULT, DATA_AVAILABLE
     }
@@ -70,6 +70,7 @@ public class Cpu {
         operation(0x06, new StandardOperation(zeroPageMode, ReadWrite, this::leftShift));
         operation(0x16, new StandardOperation(zeroPageXMode, ReadWrite, this::leftShift));
         operation(0x0E, new StandardOperation(absoluteMode, ReadWrite, this::leftShift));
+        operation(0x1E, new StandardOperation(absoluteXMode, ReadWrite, this::leftShift));
         // LDA
         operation(0xA9, new StandardOperation(immediateMode, Read, this::loadA));
         operation(0xA5, new StandardOperation(zeroPageMode, Read, this::loadA));
@@ -245,9 +246,9 @@ public class Cpu {
         return nextState;
     }
 
-    private State readEffectiveAddress() {
+    private State readEffectiveAddress(State nextState) {
         this.data = this.memory.load(this.address);
-        return State.DATA_AVAILABLE;
+        return nextState;
     }
 
     private State readEffectiveAddressAddIndex(State nextState, byte index) {
@@ -385,7 +386,7 @@ public class Cpu {
                 case FETCH_ADDRESS -> fetchAddress(
                         operationType == Write ? State.DATA_AVAILABLE : State.READ_EFFECTIVE_ADDRESS,
                         Cpu.this::nextPC);
-                case READ_EFFECTIVE_ADDRESS -> readEffectiveAddress();
+                case READ_EFFECTIVE_ADDRESS -> readEffectiveAddress(State.DATA_AVAILABLE);
                 case DATA_AVAILABLE -> executeOperation(operation, operationType);
                 case STORE_RESULT -> storeResult();
                 default -> throw new IllegalStateException();
@@ -407,7 +408,7 @@ public class Cpu {
                 case FETCH_ADDRESS -> fetchAddress(State.READ_EFFECTIVE_ADDRESS_ADD_INDEX, Cpu.this::nextPC);
                 case READ_EFFECTIVE_ADDRESS_ADD_INDEX -> readEffectiveAddressAddIndex(
                         operationType == Write ? State.DATA_AVAILABLE : State.READ_EFFECTIVE_ADDRESS, index.get());
-                case READ_EFFECTIVE_ADDRESS -> readEffectiveAddress();
+                case READ_EFFECTIVE_ADDRESS -> readEffectiveAddress(State.DATA_AVAILABLE);
                 case DATA_AVAILABLE -> executeOperation(operation, operationType);
                 case STORE_RESULT -> storeResult();
                 default -> throw new IllegalStateException();
@@ -423,7 +424,7 @@ public class Cpu {
                 case FETCH_ADDRESS -> fetchAddress(State.FETCH_EFFECTIVE_ADDRESS_HIGH, Cpu.this::nextPC);
                 case FETCH_EFFECTIVE_ADDRESS_HIGH -> fetchAddressHigh(
                         operationType == Write ? State.DATA_AVAILABLE : State.READ_EFFECTIVE_ADDRESS, Cpu.this::nextPC);
-                case READ_EFFECTIVE_ADDRESS -> readEffectiveAddress();
+                case READ_EFFECTIVE_ADDRESS -> readEffectiveAddress(State.DATA_AVAILABLE);
                 case DATA_AVAILABLE -> executeOperation(operation, operationType);
                 case STORE_RESULT -> storeResult();
                 default -> throw new IllegalStateException();
@@ -444,10 +445,16 @@ public class Cpu {
                 case FETCH_OPCODE -> State.FETCH_ADDRESS;
                 case FETCH_ADDRESS -> fetchAddress(State.FETCH_EFFECTIVE_ADDRESS_HIGH_ADD_INDEX, Cpu.this::nextPC);
                 case FETCH_EFFECTIVE_ADDRESS_HIGH_ADD_INDEX -> fetchAddressHighAddIndex(Cpu.this::nextPC, this.index.get());
-                case READ_EFFECTIVE_ADDRESS -> readEffectiveAddress();
-                case READ_EFFECTIVE_ADDRESS_FIX_HIGH -> readEffectiveAddressFixHigh(
-                        operationType == Read ? State.READ_EFFECTIVE_ADDRESS : State.DATA_AVAILABLE);
+                case READ_EFFECTIVE_ADDRESS -> readEffectiveAddress(operationType == ReadWrite ?
+                        State.REREAD_EFFECTIVE_ADDRESS : State.DATA_AVAILABLE);
+                case REREAD_EFFECTIVE_ADDRESS -> readEffectiveAddress(State.DATA_AVAILABLE);
+                case READ_EFFECTIVE_ADDRESS_FIX_HIGH -> readEffectiveAddressFixHigh(switch (operationType) {
+                            case Write -> State.DATA_AVAILABLE;
+                            case Read -> State.READ_EFFECTIVE_ADDRESS;
+                            case ReadWrite -> State.REREAD_EFFECTIVE_ADDRESS;
+                        });
                 case DATA_AVAILABLE -> executeOperation(operation, operationType);
+                case STORE_RESULT -> storeResult();
                 default -> throw new IllegalStateException();
             };
         }
@@ -464,7 +471,7 @@ public class Cpu {
                 case FETCH_EFFECTIVE_ADDRESS_HIGH -> fetchAddressHigh(
                         operationType == Read ? State.READ_EFFECTIVE_ADDRESS : State.DATA_AVAILABLE,
                         Cpu.this::nextPointer);
-                case READ_EFFECTIVE_ADDRESS -> readEffectiveAddress();
+                case READ_EFFECTIVE_ADDRESS -> readEffectiveAddress(State.DATA_AVAILABLE);
                 case DATA_AVAILABLE -> executeOperation(operation, operationType);
                 default -> throw new IllegalStateException();
             };
@@ -479,7 +486,7 @@ public class Cpu {
                 case FETCH_POINTER -> fetchPointer(State.FETCH_ADDRESS);
                 case FETCH_ADDRESS -> fetchAddress(State.FETCH_EFFECTIVE_ADDRESS_HIGH_ADD_INDEX, Cpu.this::nextPointer);
                 case FETCH_EFFECTIVE_ADDRESS_HIGH_ADD_INDEX -> fetchAddressHighAddIndex(Cpu.this::nextPointer, y);
-                case READ_EFFECTIVE_ADDRESS -> readEffectiveAddress();
+                case READ_EFFECTIVE_ADDRESS -> readEffectiveAddress(State.DATA_AVAILABLE);
                 case READ_EFFECTIVE_ADDRESS_FIX_HIGH -> readEffectiveAddressFixHigh(
                         operationType == Read ? State.READ_EFFECTIVE_ADDRESS : State.DATA_AVAILABLE);
                 case DATA_AVAILABLE -> executeOperation(operation, operationType);
