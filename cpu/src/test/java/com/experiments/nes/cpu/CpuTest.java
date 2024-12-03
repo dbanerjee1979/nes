@@ -1482,6 +1482,108 @@ class CpuTest {
     }
 
     @Nested
+    class DEX {
+        @Test
+        void testImplied() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA2); // LDX #02
+            memory(0x0101, 0x02);
+            memory(0x0102, 0xCA); // DEX
+
+            clock(5);
+
+            cycle(0, "Fetch opcode"                      ).read(0x0100).x(0x00);
+            cycle(1, "Fetch value"                       ).read(0x0101).x(0x00);
+            cycle(2, "Fetch opcode"                      ).read(0x0102).x(0x02);
+            cycle(3, "Fetch next instruction, throw away").read(0x0103).x(0x02);
+            cycle(4, "Fetch opcode"                      ).read(0x0103).x(0x01);
+        }
+
+        @Test
+        void testZeroFlag() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA2); // LDX #01
+            memory(0x0101, 0x01);
+            memory(0x0102, 0xCA); // DEX
+
+            clock(5);
+
+            cycle(0, "Fetch opcode"                      ).read(0x0100).x(0x00).flags("..1..I..");
+            cycle(1, "Fetch value"                       ).read(0x0101).x(0x00).flags("..1..I..");
+            cycle(2, "Fetch opcode"                      ).read(0x0102).x(0x01).flags("..1..I..");
+            cycle(3, "Fetch next instruction, throw away").read(0x0103).x(0x01).flags("..1..I..");
+            cycle(4, "Fetch opcode"                      ).read(0x0103).x(0x00).flags("..1..IZ.");
+        }
+
+        @Test
+        void testNegativeFlag() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA2); // LDX #00
+            memory(0x0101, 0x00);
+            memory(0x0102, 0xCA); // DEX
+
+            clock(5);
+
+            cycle(0, "Fetch opcode"                      ).read(0x0100).x(0x00).flags("..1..I..");
+            cycle(1, "Fetch value"                       ).read(0x0101).x(0x00).flags("..1..I..");
+            cycle(2, "Fetch opcode"                      ).read(0x0102).x(0x00).flags("..1..IZ.");
+            cycle(3, "Fetch next instruction, throw away").read(0x0103).x(0x00).flags("..1..IZ.");
+            cycle(4, "Fetch opcode"                      ).read(0x0103).x(0xFF).flags("N.1..I..");
+        }
+    }
+
+    @Nested
+    class DEY {
+        @Test
+        void testImplied() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA0); // LDY #02
+            memory(0x0101, 0x02);
+            memory(0x0102, 0x88); // DEY
+
+            clock(5);
+
+            cycle(0, "Fetch opcode"                      ).read(0x0100).y(0x00);
+            cycle(1, "Fetch value"                       ).read(0x0101).y(0x00);
+            cycle(2, "Fetch opcode"                      ).read(0x0102).y(0x02);
+            cycle(3, "Fetch next instruction, throw away").read(0x0103).y(0x02);
+            cycle(4, "Fetch opcode"                      ).read(0x0103).y(0x01);
+        }
+
+        @Test
+        void testZeroFlag() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA0); // LDY #01
+            memory(0x0101, 0x01);
+            memory(0x0102, 0x88); // DEY
+
+            clock(5);
+
+            cycle(0, "Fetch opcode"                      ).read(0x0100).y(0x00).flags("..1..I..");
+            cycle(1, "Fetch value"                       ).read(0x0101).y(0x00).flags("..1..I..");
+            cycle(2, "Fetch opcode"                      ).read(0x0102).y(0x01).flags("..1..I..");
+            cycle(3, "Fetch next instruction, throw away").read(0x0103).y(0x01).flags("..1..I..");
+            cycle(4, "Fetch opcode"                      ).read(0x0103).y(0x00).flags("..1..IZ.");
+        }
+
+        @Test
+        void testNegativeFlag() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA0); // LDY #00
+            memory(0x0101, 0x00);
+            memory(0x0102, 0x88); // DEY
+
+            clock(5);
+
+            cycle(0, "Fetch opcode"                      ).read(0x0100).y(0x00).flags("..1..I..");
+            cycle(1, "Fetch value"                       ).read(0x0101).y(0x00).flags("..1..I..");
+            cycle(2, "Fetch opcode"                      ).read(0x0102).y(0x00).flags("..1..IZ.");
+            cycle(3, "Fetch next instruction, throw away").read(0x0103).y(0x00).flags("..1..IZ.");
+            cycle(4, "Fetch opcode"                      ).read(0x0103).y(0xFF).flags("N.1..I..");
+        }
+    }
+
+    @Nested
     class EOR {
         @Test
         void testImmediate() {
@@ -1844,6 +1946,108 @@ class CpuTest {
             cycle(7, "Read from effective address").read(0x0001       ).flags("N.1..I..");
             cycle(8, "Write old value to address" ).write(0x0001, 0xFF).flags("..1..IZ.");
             cycle(9, "Write new value to address" ).write(0x0001, 0x00).flags("..1..IZ.");
+        }
+    }
+
+    @Nested
+    class INX {
+        @Test
+        void testImplied() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA2); // LDX #02
+            memory(0x0101, 0x02);
+            memory(0x0102, 0xE8); // INX
+
+            clock(5);
+
+            cycle(0, "Fetch opcode"                      ).read(0x0100).x(0x00);
+            cycle(1, "Fetch value"                       ).read(0x0101).x(0x00);
+            cycle(2, "Fetch opcode"                      ).read(0x0102).x(0x02);
+            cycle(3, "Fetch next instruction, throw away").read(0x0103).x(0x02);
+            cycle(4, "Fetch opcode"                      ).read(0x0103).x(0x03);
+        }
+
+        @Test
+        void testZeroFlag() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA2); // LDX #FF
+            memory(0x0101, 0xFF);
+            memory(0x0102, 0xE8); // INX
+
+            clock(5);
+
+            cycle(0, "Fetch opcode"                      ).read(0x0100).x(0x00).flags("..1..I..");
+            cycle(1, "Fetch value"                       ).read(0x0101).x(0x00).flags("..1..I..");
+            cycle(2, "Fetch opcode"                      ).read(0x0102).x(0xFF).flags("N.1..I..");
+            cycle(3, "Fetch next instruction, throw away").read(0x0103).x(0xFF).flags("N.1..I..");
+            cycle(4, "Fetch opcode"                      ).read(0x0103).x(0x00).flags("..1..IZ.");
+        }
+
+        @Test
+        void testNegativeFlag() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA2); // LDX #7F
+            memory(0x0101, 0x7F);
+            memory(0x0102, 0xE8); // INX
+
+            clock(5);
+
+            cycle(0, "Fetch opcode"                      ).read(0x0100).x(0x00).flags("..1..I..");
+            cycle(1, "Fetch value"                       ).read(0x0101).x(0x00).flags("..1..I..");
+            cycle(2, "Fetch opcode"                      ).read(0x0102).x(0x7F).flags("..1..I..");
+            cycle(3, "Fetch next instruction, throw away").read(0x0103).x(0x7F).flags("..1..I..");
+            cycle(4, "Fetch opcode"                      ).read(0x0103).x(0x80).flags("N.1..I..");
+        }
+    }
+
+    @Nested
+    class INY {
+        @Test
+        void testImplied() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA0); // LDY #02
+            memory(0x0101, 0x02);
+            memory(0x0102, 0xC8); // INY
+
+            clock(5);
+
+            cycle(0, "Fetch opcode"                      ).read(0x0100).y(0x00);
+            cycle(1, "Fetch value"                       ).read(0x0101).y(0x00);
+            cycle(2, "Fetch opcode"                      ).read(0x0102).y(0x02);
+            cycle(3, "Fetch next instruction, throw away").read(0x0103).y(0x02);
+            cycle(4, "Fetch opcode"                      ).read(0x0103).y(0x03);
+        }
+
+        @Test
+        void testZeroFlag() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA0); // LDY #FF
+            memory(0x0101, 0xFF);
+            memory(0x0102, 0xC8); // INY
+
+            clock(5);
+
+            cycle(0, "Fetch opcode"                      ).read(0x0100).y(0x00).flags("..1..I..");
+            cycle(1, "Fetch value"                       ).read(0x0101).y(0x00).flags("..1..I..");
+            cycle(2, "Fetch opcode"                      ).read(0x0102).y(0xFF).flags("N.1..I..");
+            cycle(3, "Fetch next instruction, throw away").read(0x0103).y(0xFF).flags("N.1..I..");
+            cycle(4, "Fetch opcode"                      ).read(0x0103).y(0x00).flags("..1..IZ.");
+        }
+
+        @Test
+        void testNegativeFlag() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA0); // LDY #7F
+            memory(0x0101, 0x7F);
+            memory(0x0102, 0xC8); // INY
+
+            clock(5);
+
+            cycle(0, "Fetch opcode"                      ).read(0x0100).y(0x00).flags("..1..I..");
+            cycle(1, "Fetch value"                       ).read(0x0101).y(0x00).flags("..1..I..");
+            cycle(2, "Fetch opcode"                      ).read(0x0102).y(0x7F).flags("..1..I..");
+            cycle(3, "Fetch next instruction, throw away").read(0x0103).y(0x7F).flags("..1..I..");
+            cycle(4, "Fetch opcode"                      ).read(0x0103).y(0x80).flags("N.1..I..");
         }
     }
 

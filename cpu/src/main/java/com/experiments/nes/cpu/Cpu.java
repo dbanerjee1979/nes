@@ -132,6 +132,10 @@ public class Cpu {
         operation(0xD6, new StandardOperation(zeroPageXMode, ReadWrite, this::decrement));
         operation(0xCE, new StandardOperation(absoluteMode, ReadWrite, this::decrement));
         operation(0xDE, new StandardOperation(absoluteXMode, ReadWrite, this::decrement));
+        // DEX
+        operation(0xCA, new StandardOperation(impliedMode, Read, this::decrementX));
+        // DEY
+        operation(0x88, new StandardOperation(impliedMode, Read, this::decrementY));
         // EOR
         operation(0x49, new StandardOperation(immediateMode, Read, this::xor));
         operation(0x45, new StandardOperation(zeroPageMode, Read, this::xor));
@@ -146,6 +150,10 @@ public class Cpu {
         operation(0xF6, new StandardOperation(zeroPageXMode, ReadWrite, this::increment));
         operation(0xEE, new StandardOperation(absoluteMode, ReadWrite, this::increment));
         operation(0xFE, new StandardOperation(absoluteXMode, ReadWrite, this::increment));
+        // INX
+        operation(0xE8, new StandardOperation(impliedMode, Read, this::incrementX));
+        // INY
+        operation(0xC8, new StandardOperation(impliedMode, Read, this::incrementY));
         // LDA
         operation(0xA9, new StandardOperation(immediateMode, Read, this::loadA));
         operation(0xA5, new StandardOperation(zeroPageMode, Read, this::loadA));
@@ -463,9 +471,29 @@ public class Cpu {
         setZeroNegativeFlags(this.data);
     }
 
+    private void decrementX() {
+        this.x--;
+        setZeroNegativeFlags(this.x);
+    }
+
+    private void decrementY() {
+        this.y--;
+        setZeroNegativeFlags(this.y);
+    }
+
     private void increment() {
         this.data++;
         setZeroNegativeFlags(this.data);
+    }
+
+    private void incrementX() {
+        this.x++;
+        setZeroNegativeFlags(this.x);
+    }
+
+    private void incrementY() {
+        this.y++;
+        setZeroNegativeFlags(this.y);
     }
 
     private void xor() {
