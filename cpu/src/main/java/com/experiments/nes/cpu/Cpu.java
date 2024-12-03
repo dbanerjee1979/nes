@@ -235,6 +235,8 @@ public class Cpu {
         operation(0x84, new StandardOperation(zeroPageMode, Write, this::storeY));
         operation(0x94, new StandardOperation(zeroPageXMode, Write, this::storeY));
         operation(0x8C, new StandardOperation(absoluteMode, Write, this::storeY));
+        // SEI
+        operation(0xAA, new StandardOperation(impliedMode, Read, this::transferAtoX));
     }
 
     private void operation(int opcode, Operation operation) {
@@ -587,6 +589,11 @@ public class Cpu {
 
     private void clearOverflow() {
         this.p = Flag.Overflow.clear(this.p);
+    }
+
+    private void transferAtoX() {
+        this.x = this.a;
+        setZeroNegativeFlags(this.x);
     }
 
     @FunctionalInterface
