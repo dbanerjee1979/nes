@@ -4037,4 +4037,35 @@ class CpuTest {
             cycle(2, "Fetch opcode"                      ).read(0x0101).a(0x00).x(0x00).flags("..1..IZ.");
         }
     }
+
+    @Nested
+    class TAY {
+        @Test
+        void testImplied() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA9); // LDA #01
+            memory(0x0101, 0x01);
+            memory(0x0102, 0xA8); // TAY
+
+            clock(5);
+
+            cycle(0, "Fetch opcode"                      ).read(0x0100).a(0x00).y(0x00);
+            cycle(1, "Fetch value"                       ).read(0x0101).a(0x00).y(0x00);
+            cycle(2, "Fetch opcode"                      ).read(0x0102).a(0x01).y(0x00);
+            cycle(3, "Fetch next instruction, throw away").read(0x0103).a(0x01).y(0x00);
+            cycle(4, "Fetch opcode"                      ).read(0x0103).a(0x01).y(0x01);
+        }
+
+        @Test
+        void testZeroFlag() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA8); // TAY
+
+            clock(3);
+
+            cycle(0, "Fetch opcode"                      ).read(0x0100).a(0x00).y(0x00).flags("..1..I..");
+            cycle(1, "Fetch next instruction, throw away").read(0x0101).a(0x00).y(0x00).flags("..1..I..");
+            cycle(2, "Fetch opcode"                      ).read(0x0101).a(0x00).y(0x00).flags("..1..IZ.");
+        }
+    }
 }

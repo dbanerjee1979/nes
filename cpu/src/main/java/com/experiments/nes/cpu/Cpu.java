@@ -235,8 +235,10 @@ public class Cpu {
         operation(0x84, new StandardOperation(zeroPageMode, Write, this::storeY));
         operation(0x94, new StandardOperation(zeroPageXMode, Write, this::storeY));
         operation(0x8C, new StandardOperation(absoluteMode, Write, this::storeY));
-        // SEI
+        // TAX
         operation(0xAA, new StandardOperation(impliedMode, Read, this::transferAtoX));
+        // TAY
+        operation(0xA8, new StandardOperation(impliedMode, Read, this::transferAtoY));
     }
 
     private void operation(int opcode, Operation operation) {
@@ -594,6 +596,11 @@ public class Cpu {
     private void transferAtoX() {
         this.x = this.a;
         setZeroNegativeFlags(this.x);
+    }
+
+    private void transferAtoY() {
+        this.y = this.a;
+        setZeroNegativeFlags(this.y);
     }
 
     @FunctionalInterface
