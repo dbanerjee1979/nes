@@ -213,6 +213,12 @@ public class Cpu {
         operation(0xF9, new StandardOperation(absoluteYMode, Read, this::subtractWithCarry));
         operation(0xE1, new StandardOperation(indexedIndirectMode, Read, this::subtractWithCarry));
         operation(0xF1, new StandardOperation(indirectIndexedMode, Read, this::subtractWithCarry));
+        // SEC
+        operation(0x38, new StandardOperation(impliedMode, Read, this::setCarry));
+        // SED
+        operation(0xF8, new StandardOperation(impliedMode, Read, this::setDecimal));
+        // SEI
+        operation(0x78, new StandardOperation(impliedMode, Read, this::setInterrupt));
         // STA
         operation(0x85, new StandardOperation(zeroPageMode, Write, this::storeA));
         operation(0x95, new StandardOperation(zeroPageXMode, Write, this::storeA));
@@ -559,12 +565,24 @@ public class Cpu {
         this.p = Flag.Carry.clear(this.p);
     }
 
+    private void setCarry() {
+        this.p = Flag.Carry.set(this.p);
+    }
+
     private void clearDecimal() {
         this.p = Flag.Decimal.clear(this.p);
     }
 
+    private void setDecimal() {
+        this.p = Flag.Decimal.set(this.p);
+    }
+
     private void clearInterrupt() {
         this.p = Flag.InterruptDisabled.clear(this.p);
+    }
+
+    private void setInterrupt() {
+        this.p = Flag.InterruptDisabled.set(this.p);
     }
 
     private void clearOverflow() {

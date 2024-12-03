@@ -3614,6 +3614,52 @@ class CpuTest {
     }
 
     @Nested
+    class SEC {
+        @Test
+        void testImplied() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0x38); // SEC
+
+            clock(3);
+
+            cycle(0, "Fetch opcode"                      ).read(0x0100).flags("..1..I..");
+            cycle(1, "Fetch next instruction, throw away").read(0x0101).flags("..1..I..");
+            cycle(2, "Fetch opcode"                      ).read(0x0101).flags("..1..I.C");
+        }
+    }
+
+    @Nested
+    class SED {
+        @Test
+        void testImplied() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xF8); // SED
+
+            clock(3);
+
+            cycle(0, "Fetch opcode"                      ).read(0x0100).flags("..1..I..");
+            cycle(1, "Fetch next instruction, throw away").read(0x0101).flags("..1..I..");
+            cycle(2, "Fetch opcode"                      ).read(0x0101).flags("..1.DI..");
+        }
+    }
+
+    @Nested
+    class SEI {
+        @Test
+        void testImplied() {
+            cpu.pc(0x0100);
+            cpu.p(Cpu.Flag.InterruptDisabled.clear(cpu.p()));
+            memory(0x0100, 0x78); // SEI
+
+            clock(3);
+
+            cycle(0, "Fetch opcode"                      ).read(0x0100).flags("..1.....");
+            cycle(1, "Fetch next instruction, throw away").read(0x0101).flags("..1.....");
+            cycle(2, "Fetch opcode"                      ).read(0x0101).flags("..1..I..");
+        }
+    }
+
+    @Nested
     class STA {
         @Test
         void testZeroPage() {
