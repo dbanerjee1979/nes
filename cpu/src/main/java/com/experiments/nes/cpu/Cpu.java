@@ -102,14 +102,22 @@ public class Cpu {
         operation(0x24, new StandardOperation(zeroPageMode, Read, this::bit));
         operation(0x2C, new StandardOperation(absoluteXMode, Read, this::bit));
         // CMP
-        operation(0xC9, new StandardOperation(immediateMode, Read, this::compare));
-        operation(0xC5, new StandardOperation(zeroPageMode, Read, this::compare));
-        operation(0xD5, new StandardOperation(zeroPageXMode, Read, this::compare));
-        operation(0xCD, new StandardOperation(absoluteMode, Read, this::compare));
-        operation(0xDD, new StandardOperation(absoluteXMode, Read, this::compare));
-        operation(0xD9, new StandardOperation(absoluteYMode, Read, this::compare));
-        operation(0xC1, new StandardOperation(indexedIndirectMode, Read, this::compare));
-        operation(0xD1, new StandardOperation(indirectIndexedMode, Read, this::compare));
+        operation(0xC9, new StandardOperation(immediateMode, Read, this::compareA));
+        operation(0xC5, new StandardOperation(zeroPageMode, Read, this::compareA));
+        operation(0xD5, new StandardOperation(zeroPageXMode, Read, this::compareA));
+        operation(0xCD, new StandardOperation(absoluteMode, Read, this::compareA));
+        operation(0xDD, new StandardOperation(absoluteXMode, Read, this::compareA));
+        operation(0xD9, new StandardOperation(absoluteYMode, Read, this::compareA));
+        operation(0xC1, new StandardOperation(indexedIndirectMode, Read, this::compareA));
+        operation(0xD1, new StandardOperation(indirectIndexedMode, Read, this::compareA));
+        // CPX
+        operation(0xE0, new StandardOperation(immediateMode, Read, this::compareX));
+        operation(0xE4, new StandardOperation(zeroPageMode, Read, this::compareX));
+        operation(0xEC, new StandardOperation(absoluteMode, Read, this::compareX));
+        // CPY
+        operation(0xC0, new StandardOperation(immediateMode, Read, this::compareY));
+        operation(0xC4, new StandardOperation(zeroPageMode, Read, this::compareY));
+        operation(0xCC, new StandardOperation(absoluteMode, Read, this::compareY));
         // DEC
         operation(0xC6, new StandardOperation(zeroPageMode, ReadWrite, this::decrement));
         operation(0xD6, new StandardOperation(zeroPageXMode, ReadWrite, this::decrement));
@@ -482,11 +490,23 @@ public class Cpu {
         addWithCarry();
     }
 
-    private void compare() {
-        int result = this.a - this.data;
+    private void compare(byte register) {
+        int result = register - this.data;
         this.p = Flag.Carry.set(this.p, result >= 0);
         this.p = Flag.Zero.set(this.p, result == 0);
         this.p = Flag.Negative.set(this.p, result < 0);
+    }
+
+    private void compareA() {
+        compare(this.a);
+    }
+
+    private void compareX() {
+        compare(this.x);
+    }
+
+    private void compareY() {
+        compare(this.y);
     }
 
     private void bit() {

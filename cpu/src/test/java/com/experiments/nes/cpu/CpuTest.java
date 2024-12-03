@@ -1132,6 +1132,126 @@ class CpuTest {
     }
 
     @Nested
+    class CPX {
+        @Test
+        void testImmediate() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA2); // LDX #02
+            memory(0x0101, 0x02);
+            memory(0x0102, 0xE0); // CPX #01
+            memory(0x0103, 0x01);
+
+            clock(5);
+
+            cycle(0, "Fetch opcode").read(0x0100).x(0x00).flags("..1..I..");
+            cycle(1, "Fetch value" ).read(0x0101).x(0x00).flags("..1..I..");
+            cycle(2, "Fetch opcode").read(0x0102).x(0x02).flags("..1..I..");
+            cycle(3, "Fetch value" ).read(0x0103).x(0x02).flags("..1..I..");
+            cycle(4, "Fetch opcode").read(0x0104).x(0x02).flags("..1..I.C");
+        }
+
+        @Test
+        void testZeroPage() {
+            cpu.pc(0x0100);
+            memory(0x0001, 0x01);
+            memory(0x0100, 0xA2); // LDX #02
+            memory(0x0101, 0x02);
+            memory(0x0102, 0xE4); // CPX $01
+            memory(0x0103, 0x01);
+
+            clock(6);
+
+            cycle(0, "Fetch opcode"               ).read(0x0100).x(0x00).flags("..1..I..");
+            cycle(1, "Fetch value"                ).read(0x0101).x(0x00).flags("..1..I..");
+            cycle(2, "Fetch opcode"               ).read(0x0102).x(0x02).flags("..1..I..");
+            cycle(3, "Fetch address"              ).read(0x0103).x(0x02).flags("..1..I..");
+            cycle(4, "Read from effective address").read(0x0001).x(0x02).flags("..1..I..");
+            cycle(5, "Fetch opcode"               ).read(0x0104).x(0x02).flags("..1..I.C");
+        }
+
+        @Test
+        void testAbsolute() {
+            cpu.pc(0x0100);
+            memory(0x1234, 0x01);
+            memory(0x0100, 0xA2); // LDX #02
+            memory(0x0101, 0x02);
+            memory(0x0102, 0xEC); // CPX $1234
+            memory(0x0103, 0x34);
+            memory(0x0104, 0x12);
+
+            clock(7);
+
+            cycle(0, "Fetch opcode"               ).read(0x0100).x(0x00).flags("..1..I..");
+            cycle(1, "Fetch value"                ).read(0x0101).x(0x00).flags("..1..I..");
+            cycle(2, "Fetch opcode"               ).read(0x0102).x(0x02).flags("..1..I..");
+            cycle(3, "Fetch address low byte"     ).read(0x0103).x(0x02).flags("..1..I..");
+            cycle(4, "Fetch address high byte"    ).read(0x0104).x(0x02).flags("..1..I..");
+            cycle(5, "Read from effective address").read(0x1234).x(0x02).flags("..1..I..");
+            cycle(6, "Fetch opcode"               ).read(0x0105).x(0x02).flags("..1..I.C");
+        }
+    }
+
+    @Nested
+    class CPY {
+        @Test
+        void testImmediate() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA0); // LDY #02
+            memory(0x0101, 0x02);
+            memory(0x0102, 0xC0); // CPY #01
+            memory(0x0103, 0x01);
+
+            clock(5);
+
+            cycle(0, "Fetch opcode").read(0x0100).y(0x00).flags("..1..I..");
+            cycle(1, "Fetch value" ).read(0x0101).y(0x00).flags("..1..I..");
+            cycle(2, "Fetch opcode").read(0x0102).y(0x02).flags("..1..I..");
+            cycle(3, "Fetch value" ).read(0x0103).y(0x02).flags("..1..I..");
+            cycle(4, "Fetch opcode").read(0x0104).y(0x02).flags("..1..I.C");
+        }
+
+        @Test
+        void testZeroPage() {
+            cpu.pc(0x0100);
+            memory(0x0001, 0x01);
+            memory(0x0100, 0xA0); // LDY #02
+            memory(0x0101, 0x02);
+            memory(0x0102, 0xC4); // CPY $01
+            memory(0x0103, 0x01);
+
+            clock(6);
+
+            cycle(0, "Fetch opcode"               ).read(0x0100).y(0x00).flags("..1..I..");
+            cycle(1, "Fetch value"                ).read(0x0101).y(0x00).flags("..1..I..");
+            cycle(2, "Fetch opcode"               ).read(0x0102).y(0x02).flags("..1..I..");
+            cycle(3, "Fetch address"              ).read(0x0103).y(0x02).flags("..1..I..");
+            cycle(4, "Read from effective address").read(0x0001).y(0x02).flags("..1..I..");
+            cycle(5, "Fetch opcode"               ).read(0x0104).y(0x02).flags("..1..I.C");
+        }
+
+        @Test
+        void testAbsolute() {
+            cpu.pc(0x0100);
+            memory(0x1234, 0x01);
+            memory(0x0100, 0xA0); // LDY #02
+            memory(0x0101, 0x02);
+            memory(0x0102, 0xCC); // CPY $1234
+            memory(0x0103, 0x34);
+            memory(0x0104, 0x12);
+
+            clock(7);
+
+            cycle(0, "Fetch opcode"               ).read(0x0100).y(0x00).flags("..1..I..");
+            cycle(1, "Fetch value"                ).read(0x0101).y(0x00).flags("..1..I..");
+            cycle(2, "Fetch opcode"               ).read(0x0102).y(0x02).flags("..1..I..");
+            cycle(3, "Fetch address low byte"     ).read(0x0103).y(0x02).flags("..1..I..");
+            cycle(4, "Fetch address high byte"    ).read(0x0104).y(0x02).flags("..1..I..");
+            cycle(5, "Read from effective address").read(0x1234).y(0x02).flags("..1..I..");
+            cycle(6, "Fetch opcode"               ).read(0x0105).y(0x02).flags("..1..I.C");
+        }
+    }
+
+    @Nested
     class DEC {
         @Test
         void testZeroPage() {
