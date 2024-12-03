@@ -27,12 +27,13 @@ public class Cpu {
             return (byte) (p | mask);
         }
 
+        public byte clear(byte p) {
+            return (byte) (p & ~mask);
+        }
+
         public byte set(byte p, boolean isSet) {
-            p = (byte) (p & ~mask);
-            if (isSet) {
-                p |= mask;
-            }
-            return p;
+            p = clear(p);
+            return isSet ? set(p) : p;
         }
     }
 
@@ -97,6 +98,15 @@ public class Cpu {
         operation(0x16, new StandardOperation(zeroPageXMode, ReadWrite, this::leftShift));
         operation(0x0E, new StandardOperation(absoluteMode, ReadWrite, this::leftShift));
         operation(0x1E, new StandardOperation(absoluteXMode, ReadWrite, this::leftShift));
+        // CMP
+        operation(0xC9, new StandardOperation(immediateMode, Read, this::compare));
+        operation(0xC5, new StandardOperation(zeroPageMode, Read, this::compare));
+        operation(0xD5, new StandardOperation(zeroPageXMode, Read, this::compare));
+        operation(0xCD, new StandardOperation(absoluteMode, Read, this::compare));
+        operation(0xDD, new StandardOperation(absoluteXMode, Read, this::compare));
+        operation(0xD9, new StandardOperation(absoluteYMode, Read, this::compare));
+        operation(0xC1, new StandardOperation(indexedIndirectMode, Read, this::compare));
+        operation(0xD1, new StandardOperation(indirectIndexedMode, Read, this::compare));
         // DEC
         operation(0xC6, new StandardOperation(zeroPageMode, ReadWrite, this::decrement));
         operation(0xD6, new StandardOperation(zeroPageXMode, ReadWrite, this::decrement));
@@ -164,7 +174,7 @@ public class Cpu {
         operation(0x76, new StandardOperation(zeroPageXMode, ReadWrite, this::rotateRight));
         operation(0x6E, new StandardOperation(absoluteMode, ReadWrite, this::rotateRight));
         operation(0x7E, new StandardOperation(absoluteXMode, ReadWrite, this::rotateRight));
-        // ADC
+        // SBC
         operation(0xE9, new StandardOperation(immediateMode, Read, this::subtractWithCarry));
         operation(0xE5, new StandardOperation(zeroPageMode, Read, this::subtractWithCarry));
         operation(0xF5, new StandardOperation(zeroPageXMode, Read, this::subtractWithCarry));
@@ -467,6 +477,13 @@ public class Cpu {
     private void subtractWithCarry() {
         this.data = (byte) ~this.data;
         addWithCarry();
+    }
+
+    private void compare() {
+        int result = this.a - this.data;
+        this.p = Flag.Carry.set(this.p, result >= 0);
+        this.p = Flag.Zero.set(this.p, result == 0);
+        this.p = Flag.Negative.set(this.p, result < 0);
     }
 
     @FunctionalInterface
