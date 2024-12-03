@@ -446,9 +446,13 @@ public class Cpu {
 
     private void addWithCarry() {
         int result = (this.a & 0x00FF) + (this.data & 0x00FF) + (this.p & Flag.Carry.mask());
-        this.a = (byte) result;
-        setZeroNegativeFlags(this.a);
+        setZeroNegativeFlags((byte) result);
         this.p = Flag.Carry.set(this.p, (result & 0x0100) != 0);
+        this.p = Flag.Overflow.set(this.p, (
+                (result ^ this.a) &      // Is result sign bit different from A?
+                (result ^ this.data) &   // Is result sign bit different from memory?
+                0x80) != 0);             // If both, the result exceeds the signed range [-128, 127]
+        this.a = (byte) result;
     }
 
     @FunctionalInterface

@@ -372,6 +372,40 @@ class CpuTest {
             cycle(3, "Fetch value" ).read(0x0103).a(0xFE).flags("N.1..I..");
             cycle(4, "Fetch opcode").read(0x0104).a(0xFF).flags("N.1..I..");
         }
+
+        @Test
+        void testOverflowFlagPositive() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA9); // LDA #7F
+            memory(0x0101, 0x7F);
+            memory(0x0102, 0x69); // ADC #01
+            memory(0x0103, 0x01);
+
+            clock(5);
+
+            cycle(0, "Fetch opcode").read(0x0100).a(0x00).flags("..1..I..");
+            cycle(1, "Fetch value" ).read(0x0101).a(0x00).flags("..1..I..");
+            cycle(2, "Fetch opcode").read(0x0102).a(0x7F).flags("..1..I..");
+            cycle(3, "Fetch value" ).read(0x0103).a(0x7F).flags("..1..I..");
+            cycle(4, "Fetch opcode").read(0x0104).a(0x80).flags("NV1..I..");
+        }
+
+        @Test
+        void testOverflowFlagNegative() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA9); // LDA #80
+            memory(0x0101, 0x80);
+            memory(0x0102, 0x69); // ADC #FF
+            memory(0x0103, 0xFF);
+
+            clock(5);
+
+            cycle(0, "Fetch opcode").read(0x0100).a(0x00).flags("..1..I..");
+            cycle(1, "Fetch value" ).read(0x0101).a(0x00).flags("..1..I..");
+            cycle(2, "Fetch opcode").read(0x0102).a(0x80).flags("N.1..I..");
+            cycle(3, "Fetch value" ).read(0x0103).a(0x80).flags("N.1..I..");
+            cycle(4, "Fetch opcode").read(0x0104).a(0x7F).flags(".V1..I.C");
+        }
     }
 
     @Nested
