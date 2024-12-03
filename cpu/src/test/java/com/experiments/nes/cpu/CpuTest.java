@@ -148,6 +148,233 @@ class CpuTest {
     }
 
     @Nested
+    class ADC {
+        @Test
+        void testImmediate() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA9); // LDA #02
+            memory(0x0101, 0x02);
+            memory(0x0102, 0x69); // ADC #01
+            memory(0x0103, 0x01);
+
+            clock(5);
+
+            cycle(0, "Fetch opcode").read(0x0100).a(0x00);
+            cycle(1, "Fetch value" ).read(0x0101).a(0x00);
+            cycle(2, "Fetch opcode").read(0x0102).a(0x02);
+            cycle(3, "Fetch value" ).read(0x0103).a(0x02);
+            cycle(4, "Fetch opcode").read(0x0104).a(0x03);
+        }
+
+        @Test
+        void testZeroPage() {
+            cpu.pc(0x0100);
+            memory(0x0001, 0x01);
+            memory(0x0100, 0xA9); // LDA #02
+            memory(0x0101, 0x02);
+            memory(0x0102, 0x65); // ADC $01
+            memory(0x0103, 0x01);
+
+            clock(6);
+
+            cycle(0, "Fetch opcode"               ).read(0x0100).a(0x00);
+            cycle(1, "Fetch value"                ).read(0x0101).a(0x00);
+            cycle(2, "Fetch opcode"               ).read(0x0102).a(0x02);
+            cycle(3, "Fetch address"              ).read(0x0103).a(0x02);
+            cycle(4, "Read from effective address").read(0x0001).a(0x02);
+            cycle(5, "Fetch opcode"               ).read(0x0104).a(0x03);
+        }
+
+        @Test
+        void testZeroPageX() {
+            cpu.pc(0x0100);
+            memory(0x0002, 0x01);
+            memory(0x0100, 0xA9); // LDA #02
+            memory(0x0101, 0x02);
+            memory(0x0102, 0xA2); // LDX #01
+            memory(0x0103, 0x01);
+            memory(0x0104, 0x75); // ADC $01,X
+            memory(0x0105, 0x01);
+
+            clock(9);
+
+            cycle(0, "Fetch opcode"                ).read(0x0100).a(0x00).x(0x00);
+            cycle(1, "Fetch value"                 ).read(0x0101).a(0x00).x(0x00);
+            cycle(2, "Fetch opcode"                ).read(0x0102).a(0x02).x(0x00);
+            cycle(3, "Fetch value"                 ).read(0x0103).a(0x02).x(0x00);
+            cycle(4, "Fetch opcode"                ).read(0x0104).a(0x02).x(0x01);
+            cycle(5, "Fetch address"               ).read(0x0105).a(0x02).x(0x01);
+            cycle(6, "Read from address, add index").read(0x0001).a(0x02).x(0x01);
+            cycle(7, "Read from address           ").read(0x0002).a(0x02).x(0x01);
+            cycle(8, "Fetch opcode"                ).read(0x0106).a(0x03).x(0x01);
+        }
+
+        @Test
+        void testAbsolute() {
+            cpu.pc(0x0100);
+            memory(0x1234, 0x01);
+            memory(0x0100, 0xA9); // LDA #02
+            memory(0x0101, 0x02);
+            memory(0x0102, 0x6D); // ADC $1234
+            memory(0x0103, 0x34);
+            memory(0x0104, 0x12);
+
+            clock(7);
+
+            cycle(0, "Fetch opcode"               ).read(0x0100).a(0x00);
+            cycle(1, "Fetch value"                ).read(0x0101).a(0x00);
+            cycle(2, "Fetch opcode"               ).read(0x0102).a(0x02);
+            cycle(3, "Fetch address low byte"     ).read(0x0103).a(0x02);
+            cycle(4, "Fetch address high byte"    ).read(0x0104).a(0x02);
+            cycle(5, "Read from effective address").read(0x1234).a(0x02);
+            cycle(6, "Fetch opcode"               ).read(0x0105).a(0x03);
+        }
+
+        @Test
+        void testAbsoluteX() {
+            cpu.pc(0x0100);
+            memory(0x1235, 0x01);
+            memory(0x0100, 0xA9); // LDA #02
+            memory(0x0101, 0x02);
+            memory(0x0102, 0xA2); // LDX #01
+            memory(0x0103, 0x01);
+            memory(0x0104, 0x7D); // ADC $1234,X
+            memory(0x0105, 0x34);
+            memory(0x0106, 0x12);
+
+            clock(9);
+
+            cycle(0, "Fetch opcode"                      ).read(0x0100).a(0x00).x(0x00);
+            cycle(1, "Fetch value"                       ).read(0x0101).a(0x00).x(0x00);
+            cycle(2, "Fetch opcode"                      ).read(0x0102).a(0x02).x(0x00);
+            cycle(3, "Fetch value"                       ).read(0x0103).a(0x02).x(0x00);
+            cycle(4, "Fetch opcode"                      ).read(0x0104).a(0x02).x(0x01);
+            cycle(5, "Fetch address low byte"            ).read(0x0105).a(0x02).x(0x01);
+            cycle(6, "Fetch address high byte, add index").read(0x0106).a(0x02).x(0x01);
+            cycle(7, "Read from address"                 ).read(0x1235).a(0x02).x(0x01);
+            cycle(8, "Fetch opcode"                      ).read(0x0107).a(0x03).x(0x01);
+        }
+
+        @Test
+        void testAbsoluteY() {
+            cpu.pc(0x0100);
+            memory(0x1235, 0x01);
+            memory(0x0100, 0xA9); // LDA #02
+            memory(0x0101, 0x02);
+            memory(0x0102, 0xA0); // LDY #01
+            memory(0x0103, 0x01);
+            memory(0x0104, 0x79); // ADC $1234,X
+            memory(0x0105, 0x34);
+            memory(0x0106, 0x12);
+
+            clock(9);
+
+            cycle(0, "Fetch opcode"                      ).read(0x0100).a(0x00).x(0x00);
+            cycle(1, "Fetch value"                       ).read(0x0101).a(0x00).x(0x00);
+            cycle(2, "Fetch opcode"                      ).read(0x0102).a(0x02).y(0x00);
+            cycle(3, "Fetch value"                       ).read(0x0103).a(0x02).y(0x00);
+            cycle(4, "Fetch opcode"                      ).read(0x0104).a(0x02).y(0x01);
+            cycle(5, "Fetch address low byte"            ).read(0x0105).a(0x02).y(0x01);
+            cycle(6, "Fetch address high byte, add index").read(0x0106).a(0x02).y(0x01);
+            cycle(7, "Read from address"                 ).read(0x1235).a(0x02).y(0x01);
+            cycle(8, "Fetch opcode"                      ).read(0x0107).a(0x03).y(0x01);
+        }
+
+        @Test
+        void testIndexedIndirect() {
+            cpu.pc(0x0100);
+            memory(0x0002, 0x34);
+            memory(0x0003, 0x12);
+            memory(0x1234, 0x01);
+            memory(0x0100, 0xA9); // LDA #02
+            memory(0x0101, 0x02);
+            memory(0x0102, 0xA2); // LDX #01
+            memory(0x0103, 0x01);
+            memory(0x0104, 0x61); // ADC ($01,X)
+            memory(0x0105, 0x01);
+
+            clock(11);
+
+            cycle(0,  "Fetch opcode"                      ).read(0x0100).a(0x00).x(0x00);
+            cycle(1,  "Fetch value"                       ).read(0x0101).a(0x00).x(0x00);
+            cycle(2,  "Fetch opcode"                      ).read(0x0102).a(0x02).x(0x00);
+            cycle(3,  "Fetch value"                       ).read(0x0103).a(0x02).x(0x00);
+            cycle(4,  "Fetch opcode"                      ).read(0x0104).a(0x02).x(0x01);
+            cycle(5,  "Fetch pointer address"             ).read(0x0105).a(0x02).x(0x01);
+            cycle(6,  "Read from pointer, add X"          ).read(0x0001).a(0x02).x(0x01);
+            cycle(7,  "Fetch address low byte"            ).read(0x0002).a(0x02).x(0x01);
+            cycle(8,  "Fetch address high byte"           ).read(0x0003).a(0x02).x(0x01);
+            cycle(9,  "Read from address"                 ).read(0x1234).a(0x02).x(0x01);
+            cycle(10, "Fetch opcode"                      ).read(0x0106).a(0x03).x(0x01);
+        }
+
+        @Test
+        void testIndirectIndexed() {
+            cpu.pc(0x0100);
+            memory(0x0001, 0x34);
+            memory(0x0002, 0x12);
+            memory(0x1235, 0x01);
+            memory(0x0100, 0xA9); // LDA #02
+            memory(0x0101, 0x02);
+            memory(0x0102, 0xA0); // LDY #01
+            memory(0x0103, 0x01);
+            memory(0x0104, 0x71); // ADC ($01),Y
+            memory(0x0105, 0x01);
+
+            clock(10);
+
+            cycle(0, "Fetch opcode"                      ).read(0x0100).a(0x00).x(0x00);
+            cycle(1, "Fetch value"                       ).read(0x0101).a(0x00).x(0x00);
+            cycle(2, "Fetch opcode"                      ).read(0x0102).a(0x02).y(0x00);
+            cycle(3, "Fetch value"                       ).read(0x0103).a(0x02).y(0x00);
+            cycle(4, "Fetch opcode"                      ).read(0x0104).a(0x02).y(0x01);
+            cycle(5, "Fetch pointer address"             ).read(0x0105).a(0x02).y(0x01);
+            cycle(6, "Fetch address low byte"            ).read(0x0001).a(0x02).y(0x01);
+            cycle(7, "Fetch address high byte, add Y"    ).read(0x0002).a(0x02).y(0x01);
+            cycle(8, "Read from address"                 ).read(0x1235).a(0x02).y(0x01);
+            cycle(9, "Fetch opcode"                      ).read(0x0106).a(0x03).y(0x01);
+        }
+
+        @Test
+        void testZeroAndCarryFlag() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA9); // LDA #FF
+            memory(0x0101, 0xFF);
+            memory(0x0102, 0x69); // ADC #01
+            memory(0x0103, 0x01);
+            memory(0x0104, 0x69); // ADC #01
+            memory(0x0105, 0x01);
+
+            clock(7);
+
+            cycle(0, "Fetch opcode").read(0x0100).a(0x00).flags("..1..I..");
+            cycle(1, "Fetch value" ).read(0x0101).a(0x00).flags("..1..I..");
+            cycle(2, "Fetch opcode").read(0x0102).a(0xFF).flags("N.1..I..");
+            cycle(3, "Fetch value" ).read(0x0103).a(0xFF).flags("N.1..I..");
+            cycle(4, "Fetch opcode").read(0x0104).a(0x00).flags("..1..IZC");
+            cycle(5, "Fetch value" ).read(0x0105).a(0x00).flags("..1..IZC");
+            cycle(6, "Fetch opcode").read(0x0106).a(0x02).flags("..1..I..");
+        }
+
+        @Test
+        void testNegativeFlag() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xA9); // LDA #FE
+            memory(0x0101, 0xFE);
+            memory(0x0102, 0x69); // ADC #01
+            memory(0x0103, 0x01);
+
+            clock(5);
+
+            cycle(0, "Fetch opcode").read(0x0100).a(0x00).flags("..1..I..");
+            cycle(1, "Fetch value" ).read(0x0101).a(0x00).flags("..1..I..");
+            cycle(2, "Fetch opcode").read(0x0102).a(0xFE).flags("N.1..I..");
+            cycle(3, "Fetch value" ).read(0x0103).a(0xFE).flags("N.1..I..");
+            cycle(4, "Fetch opcode").read(0x0104).a(0xFF).flags("N.1..I..");
+        }
+    }
+
+    @Nested
     class AND {
         @Test
         void testImmediate() {
@@ -290,7 +517,7 @@ class CpuTest {
             memory(0x0101, 0x02);
             memory(0x0102, 0xA2); // LDX #01
             memory(0x0103, 0x01);
-            memory(0x0104, 0x21); // LDA ($01,X)
+            memory(0x0104, 0x21); // AND ($01,X)
             memory(0x0105, 0x01);
 
             clock(11);
@@ -340,7 +567,7 @@ class CpuTest {
             cpu.pc(0x0100);
             memory(0x0100, 0xA9); // LDA #02
             memory(0x0101, 0x02);
-            memory(0x0102, 0x29); // AND #02
+            memory(0x0102, 0x29); // AND #01
             memory(0x0103, 0x01);
 
             clock(5);

@@ -73,6 +73,15 @@ public class Cpu {
         AccumulatorMode accumulatorMode = new AccumulatorMode();
 
         operation(0x00, new BreakOperation());
+        // ADC
+        operation(0x69, new StandardOperation(immediateMode, Read, this::addWithCarry));
+        operation(0x65, new StandardOperation(zeroPageMode, Read, this::addWithCarry));
+        operation(0x75, new StandardOperation(zeroPageXMode, Read, this::addWithCarry));
+        operation(0x6D, new StandardOperation(absoluteMode, Read, this::addWithCarry));
+        operation(0x7D, new StandardOperation(absoluteXMode, Read, this::addWithCarry));
+        operation(0x79, new StandardOperation(absoluteYMode, Read, this::addWithCarry));
+        operation(0x61, new StandardOperation(indexedIndirectMode, Read, this::addWithCarry));
+        operation(0x71, new StandardOperation(indirectIndexedMode, Read, this::addWithCarry));
         // AND
         operation(0x29, new StandardOperation(immediateMode, Read, this::and));
         operation(0x25, new StandardOperation(zeroPageMode, Read, this::and));
@@ -433,6 +442,13 @@ public class Cpu {
     private void or() {
         this.a = (byte) (this.a | this.data);
         setZeroNegativeFlags(this.a);
+    }
+
+    private void addWithCarry() {
+        int result = (this.a & 0x00FF) + (this.data & 0x00FF) + (this.p & Flag.Carry.mask());
+        this.a = (byte) result;
+        setZeroNegativeFlags(this.a);
+        this.p = Flag.Carry.set(this.p, (result & 0x0100) != 0);
     }
 
     @FunctionalInterface
