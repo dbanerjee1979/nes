@@ -164,6 +164,15 @@ public class Cpu {
         operation(0x76, new StandardOperation(zeroPageXMode, ReadWrite, this::rotateRight));
         operation(0x6E, new StandardOperation(absoluteMode, ReadWrite, this::rotateRight));
         operation(0x7E, new StandardOperation(absoluteXMode, ReadWrite, this::rotateRight));
+        // ADC
+        operation(0xE9, new StandardOperation(immediateMode, Read, this::subtractWithCarry));
+        operation(0xE5, new StandardOperation(zeroPageMode, Read, this::subtractWithCarry));
+        operation(0xF5, new StandardOperation(zeroPageXMode, Read, this::subtractWithCarry));
+        operation(0xED, new StandardOperation(absoluteMode, Read, this::subtractWithCarry));
+        operation(0xFD, new StandardOperation(absoluteXMode, Read, this::subtractWithCarry));
+        operation(0xF9, new StandardOperation(absoluteYMode, Read, this::subtractWithCarry));
+        operation(0xE1, new StandardOperation(indexedIndirectMode, Read, this::subtractWithCarry));
+        operation(0xF1, new StandardOperation(indirectIndexedMode, Read, this::subtractWithCarry));
         // STA
         operation(0x85, new StandardOperation(zeroPageMode, Write, this::storeA));
         operation(0x95, new StandardOperation(zeroPageXMode, Write, this::storeA));
@@ -453,6 +462,11 @@ public class Cpu {
                 (result ^ this.data) &   // Is result sign bit different from memory?
                 0x80) != 0);             // If both, the result exceeds the signed range [-128, 127]
         this.a = (byte) result;
+    }
+
+    private void subtractWithCarry() {
+        this.data = (byte) ~this.data;
+        addWithCarry();
     }
 
     @FunctionalInterface
