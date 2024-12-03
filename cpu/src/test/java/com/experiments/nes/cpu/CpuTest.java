@@ -892,6 +892,69 @@ class CpuTest {
     }
 
     @Nested
+    class CLC {
+        @Test
+        void testImplied() {
+            cpu.pc(0x0100);
+            cpu.p(Cpu.Flag.Carry.set(cpu.p()));
+            memory(0x0100, 0x18); // CLC
+
+            clock(3);
+
+            cycle(0, "Fetch opcode"                      ).read(0x0100).flags("..1..I.C");
+            cycle(1, "Fetch next instruction, throw away").read(0x0101).flags("..1..I.C");
+            cycle(2, "Fetch opcode"                      ).read(0x0101).flags("..1..I..");
+        }
+    }
+
+    @Nested
+    class CLD {
+        @Test
+        void testImplied() {
+            cpu.pc(0x0100);
+            cpu.p(Cpu.Flag.Decimal.set(cpu.p()));
+            memory(0x0100, 0xD8); // CLD
+
+            clock(3);
+
+            cycle(0, "Fetch opcode"                      ).read(0x0100).flags("..1.DI..");
+            cycle(1, "Fetch next instruction, throw away").read(0x0101).flags("..1.DI..");
+            cycle(2, "Fetch opcode"                      ).read(0x0101).flags("..1..I..");
+        }
+    }
+
+    @Nested
+    class CLI {
+        @Test
+        void testImplied() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0x58); // CLI
+
+            clock(3);
+
+            cycle(0, "Fetch opcode"                      ).read(0x0100).flags("..1..I..");
+            cycle(1, "Fetch next instruction, throw away").read(0x0101).flags("..1..I..");
+            cycle(2, "Fetch opcode"                      ).read(0x0101).flags("..1.....");
+        }
+    }
+
+    @Nested
+    class CLV {
+        @Test
+        void testImplied() {
+            cpu.pc(0x0100);
+            cpu.p(Cpu.Flag.Overflow.set(cpu.p()));
+            memory(0x0100, 0xB8); // CLV
+
+            clock(3);
+
+            cycle(0, "Fetch opcode"                      ).read(0x0100).flags(".V1..I..");
+            cycle(1, "Fetch next instruction, throw away").read(0x0101).flags(".V1..I..");
+            cycle(2, "Fetch opcode"                      ).read(0x0101).flags("..1..I..");
+        }
+    }
+
+    @Nested
     class CMP {
         @Test
         void testImmediate() {

@@ -72,6 +72,7 @@ public class Cpu {
         IndexedIndirectMode indexedIndirectMode = new IndexedIndirectMode();
         IndirectIndexedMode indirectIndexedMode = new IndirectIndexedMode();
         AccumulatorMode accumulatorMode = new AccumulatorMode();
+        ImpliedMode impliedMode = new ImpliedMode();
 
         operation(0x00, new BreakOperation());
         // ADC
@@ -101,6 +102,14 @@ public class Cpu {
         // BIT
         operation(0x24, new StandardOperation(zeroPageMode, Read, this::bit));
         operation(0x2C, new StandardOperation(absoluteXMode, Read, this::bit));
+        // CLC
+        operation(0x18, new StandardOperation(impliedMode, Read, this::clearCarry));
+        // CLD
+        operation(0xD8, new StandardOperation(impliedMode, Read, this::clearDecimal));
+        // CLI
+        operation(0x58, new StandardOperation(impliedMode, Read, this::clearInterrupt));
+        // CLV
+        operation(0xB8, new StandardOperation(impliedMode, Read, this::clearOverflow));
         // CMP
         operation(0xC9, new StandardOperation(immediateMode, Read, this::compareA));
         operation(0xC5, new StandardOperation(zeroPageMode, Read, this::compareA));
@@ -516,6 +525,22 @@ public class Cpu {
         this.p = (byte) ((byte) (this.p & ~bitMask) | (this.data & bitMask));
     }
 
+    private void clearCarry() {
+        this.p = Flag.Carry.clear(this.p);
+    }
+
+    private void clearDecimal() {
+        this.p = Flag.Decimal.clear(this.p);
+    }
+
+    private void clearInterrupt() {
+        this.p = Flag.InterruptDisabled.clear(this.p);
+    }
+
+    private void clearOverflow() {
+        this.p = Flag.Overflow.clear(this.p);
+    }
+
     @FunctionalInterface
     private interface ByteSupplier {
         byte get();
@@ -724,6 +749,19 @@ public class Cpu {
                 // CPU requires minimum 2 cycles per operation, so it does a bogus fetch of PC
                 case FETCH_BOGUS_INSTRUCTION -> fetchBogusInstruction();
                 case DATA_AVAILABLE -> executeOperationStoreAccumulator(operation, operationType);
+                default -> throw new IllegalStateException();
+            };
+        }
+    }
+
+    private class ImpliedMode implements AddressingMode {
+        @Override
+        public State clock(Runnable operation, OperationType operationType) {
+            return switch (state) {
+                case FETCH_OPCODE -> State.FETCH_BOGUS_INSTRUCTION;
+                // CPU requires minimum 2 cycles per operation, so it does a bogus fetch of PC
+                case FETCH_BOGUS_INSTRUCTION -> fetchBogusInstruction();
+                case DATA_AVAILABLE -> executeOperation(operation, operationType);
                 default -> throw new IllegalStateException();
             };
         }
