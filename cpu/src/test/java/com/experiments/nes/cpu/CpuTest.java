@@ -2856,16 +2856,20 @@ class CpuTest {
             cpu.pc(0x0100);
             memory(0x0100, 0xA9); // LDA #02
             memory(0x0101, 0x02);
-            memory(0x0102, 0xE9); // SBC #01 -> 2 - 1 - 1 = 0 (no need to borrow from next byte)
+            memory(0x0102, 0xE9); // SBC #01 -> 2 - 1 - 1 = 0 (no need to borrow)
             memory(0x0103, 0x01);
+            memory(0x0104, 0xE9); // SBC #01 -> 0 - 1 - 0 = -1
+            memory(0x0105, 0x01);
 
-            clock(5);
+            clock(7);
 
             cycle(0, "Fetch opcode").read(0x0100).a(0x00).flags("..1..I..");
             cycle(1, "Fetch value" ).read(0x0101).a(0x00).flags("..1..I..");
             cycle(2, "Fetch opcode").read(0x0102).a(0x02).flags("..1..I..");
             cycle(3, "Fetch value" ).read(0x0103).a(0x02).flags("..1..I..");
             cycle(4, "Fetch opcode").read(0x0104).a(0x00).flags("..1..IZC");
+            cycle(5, "Fetch value" ).read(0x0105).a(0x00).flags("..1..IZC");
+            cycle(6, "Fetch opcode").read(0x0106).a(0xFF).flags("N.1..I..");
         }
 
         @Test
@@ -2875,14 +2879,18 @@ class CpuTest {
             memory(0x0101, 0x02);
             memory(0x0102, 0xE9); // SBC #02 -> 2 - 2 - 1 = -1 (borrow from next byte)
             memory(0x0103, 0x02);
+            memory(0x0104, 0xE9); // SBC #01 -> -1 - 1 - 1 = -3
+            memory(0x0105, 0x01);
 
-            clock(5);
+            clock(7);
 
             cycle(0, "Fetch opcode").read(0x0100).a(0x00).flags("..1..I..");
             cycle(1, "Fetch value" ).read(0x0101).a(0x00).flags("..1..I..");
             cycle(2, "Fetch opcode").read(0x0102).a(0x02).flags("..1..I..");
             cycle(3, "Fetch value" ).read(0x0103).a(0x02).flags("..1..I..");
             cycle(4, "Fetch opcode").read(0x0104).a(0xFF).flags("N.1..I..");
+            cycle(5, "Fetch value" ).read(0x0105).a(0xFF).flags("N.1..I..");
+            cycle(6, "Fetch opcode").read(0x0106).a(0xFD).flags("N.1..I.C");
         }
 
         @Test
