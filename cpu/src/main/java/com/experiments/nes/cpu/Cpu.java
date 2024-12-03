@@ -181,6 +181,8 @@ public class Cpu {
         operation(0x56, new StandardOperation(zeroPageXMode, ReadWrite, this::rightShift));
         operation(0x4E, new StandardOperation(absoluteMode, ReadWrite, this::rightShift));
         operation(0x5E, new StandardOperation(absoluteXMode, ReadWrite, this::rightShift));
+        // NOP
+        operation(0xEA, new StandardOperation(impliedMode, Read, () -> {}));
         // OR
         operation(0x09, new StandardOperation(immediateMode, Read, this::or));
         operation(0x05, new StandardOperation(zeroPageMode, Read, this::or));

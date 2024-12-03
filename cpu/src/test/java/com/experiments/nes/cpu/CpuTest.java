@@ -2791,6 +2791,21 @@ class CpuTest {
     }
 
     @Nested
+    class NOP {
+        @Test
+        void testImplied() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xEA); // NOP
+
+            clock(3);
+
+            cycle(0, "Fetch opcode"                      ).read(0x0100);
+            cycle(1, "Fetch next instruction, throw away").read(0x0101);
+            cycle(2, "Fetch opcode"                      ).read(0x0101);
+        }
+    }
+
+    @Nested
     class ORA {
         @Test
         void testImmediate() {
