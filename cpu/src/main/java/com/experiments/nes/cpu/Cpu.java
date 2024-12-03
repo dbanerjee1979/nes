@@ -98,6 +98,9 @@ public class Cpu {
         operation(0x16, new StandardOperation(zeroPageXMode, ReadWrite, this::leftShift));
         operation(0x0E, new StandardOperation(absoluteMode, ReadWrite, this::leftShift));
         operation(0x1E, new StandardOperation(absoluteXMode, ReadWrite, this::leftShift));
+        // BIT
+        operation(0x24, new StandardOperation(zeroPageMode, Read, this::bit));
+        operation(0x2C, new StandardOperation(absoluteXMode, Read, this::bit));
         // CMP
         operation(0xC9, new StandardOperation(immediateMode, Read, this::compare));
         operation(0xC5, new StandardOperation(zeroPageMode, Read, this::compare));
@@ -484,6 +487,13 @@ public class Cpu {
         this.p = Flag.Carry.set(this.p, result >= 0);
         this.p = Flag.Zero.set(this.p, result == 0);
         this.p = Flag.Negative.set(this.p, result < 0);
+    }
+
+    private void bit() {
+        int result = this.a & this.data;
+        this.p = Flag.Zero.set(this.p, result == 0);
+        int bitMask = Flag.Negative.mask() | Flag.Overflow.mask();
+        this.p = (byte) ((byte) (this.p & ~bitMask) | (this.data & bitMask));
     }
 
     @FunctionalInterface

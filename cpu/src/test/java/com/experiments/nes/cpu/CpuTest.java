@@ -849,6 +849,49 @@ class CpuTest {
     }
 
     @Nested
+    class BIT {
+        @Test
+        void testZeroPage() {
+            cpu.pc(0x0100);
+            memory(0x0001, 0xC0);
+            memory(0x0100, 0xA9); // LDA #01
+            memory(0x0101, 0x01);
+            memory(0x0102, 0x24); // BIT $01
+            memory(0x0103, 0x01);
+
+            clock(6);
+
+            cycle(0, "Fetch opcode"               ).read(0x0100).a(0x00).flags("..1..I..");
+            cycle(1, "Fetch value"                ).read(0x0101).a(0x00).flags("..1..I..");
+            cycle(2, "Fetch opcode"               ).read(0x0102).a(0x01).flags("..1..I..");
+            cycle(3, "Fetch address"              ).read(0x0103).a(0x01).flags("..1..I..");
+            cycle(4, "Read from effective address").read(0x0001).a(0x01).flags("..1..I..");
+            cycle(5, "Fetch opcode"               ).read(0x0104).a(0x01).flags("NV1..IZ.");
+        }
+
+        @Test
+        void testAbsolute() {
+            cpu.pc(0x0100);
+            memory(0x1234, 0xC0);
+            memory(0x0100, 0xA9); // LDA #01
+            memory(0x0101, 0x01);
+            memory(0x0102, 0x2C); // BIT $1234
+            memory(0x0103, 0x34);
+            memory(0x0104, 0x12);
+
+            clock(7);
+
+            cycle(0, "Fetch opcode"               ).read(0x0100).a(0x00).flags("..1..I..");
+            cycle(1, "Fetch value"                ).read(0x0101).a(0x00).flags("..1..I..");
+            cycle(2, "Fetch opcode"               ).read(0x0102).a(0x01).flags("..1..I..");
+            cycle(3, "Fetch address low byte"     ).read(0x0103).a(0x01).flags("..1..I..");
+            cycle(4, "Fetch address high byte"    ).read(0x0104).a(0x01).flags("..1..I..");
+            cycle(5, "Read from effective address").read(0x1234).a(0x01).flags("..1..I..");
+            cycle(6, "Fetch opcode"               ).read(0x0105).a(0x01).flags("NV1..IZ.");
+        }
+    }
+
+    @Nested
     class CMP {
         @Test
         void testImmediate() {
