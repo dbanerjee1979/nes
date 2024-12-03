@@ -2670,7 +2670,7 @@ class CpuTest {
             cpu.pc(0x0100);
             memory(0x0100, 0xA9); // LDA #02
             memory(0x0101, 0x02);
-            memory(0x0102, 0xE9); // SBC #01
+            memory(0x0102, 0xE9); // SBC #01 -> 2 - 1 - 1 = 0
             memory(0x0103, 0x01);
 
             clock(5);
@@ -2688,7 +2688,7 @@ class CpuTest {
             memory(0x0001, 0x01);
             memory(0x0100, 0xA9); // LDA #02
             memory(0x0101, 0x02);
-            memory(0x0102, 0xE5); // SBC $01
+            memory(0x0102, 0xE5); // SBC $01 -> 2 - 1 - 1 = 0
             memory(0x0103, 0x01);
 
             clock(6);
@@ -2709,7 +2709,7 @@ class CpuTest {
             memory(0x0101, 0x02);
             memory(0x0102, 0xA2); // LDX #01
             memory(0x0103, 0x01);
-            memory(0x0104, 0xF5); // SBC $01,X
+            memory(0x0104, 0xF5); // SBC $01,X -> 2 - 1 - 1 = 0
             memory(0x0105, 0x01);
 
             clock(9);
@@ -2731,7 +2731,7 @@ class CpuTest {
             memory(0x1234, 0x01);
             memory(0x0100, 0xA9); // LDA #02
             memory(0x0101, 0x02);
-            memory(0x0102, 0xED); // SBC $1234
+            memory(0x0102, 0xED); // SBC $1234 -> 2 - 1 - 1 = 0
             memory(0x0103, 0x34);
             memory(0x0104, 0x12);
 
@@ -2754,7 +2754,7 @@ class CpuTest {
             memory(0x0101, 0x02);
             memory(0x0102, 0xA2); // LDX #01
             memory(0x0103, 0x01);
-            memory(0x0104, 0xFD); // SBC $1234,X
+            memory(0x0104, 0xFD); // SBC $1234,X -> 2 - 1 - 1 = 0
             memory(0x0105, 0x34);
             memory(0x0106, 0x12);
 
@@ -2779,7 +2779,7 @@ class CpuTest {
             memory(0x0101, 0x02);
             memory(0x0102, 0xA0); // LDY #01
             memory(0x0103, 0x01);
-            memory(0x0104, 0xF9); // SBC $1234,X
+            memory(0x0104, 0xF9); // SBC $1234,X -> 2 - 1 - 1 = 0
             memory(0x0105, 0x34);
             memory(0x0106, 0x12);
 
@@ -2806,7 +2806,7 @@ class CpuTest {
             memory(0x0101, 0x02);
             memory(0x0102, 0xA2); // LDX #01
             memory(0x0103, 0x01);
-            memory(0x0104, 0xE1); // SBC ($01,X)
+            memory(0x0104, 0xE1); // SBC ($01,X) -> 2 - 1 - 1 = 0
             memory(0x0105, 0x01);
 
             clock(11);
@@ -2834,7 +2834,7 @@ class CpuTest {
             memory(0x0101, 0x02);
             memory(0x0102, 0xA0); // LDY #01
             memory(0x0103, 0x01);
-            memory(0x0104, 0xF1); // SBC ($01),Y
+            memory(0x0104, 0xF1); // SBC ($01),Y -> 2 - 1 - 1 = 0
             memory(0x0105, 0x01);
 
             clock(10);
@@ -2856,7 +2856,7 @@ class CpuTest {
             cpu.pc(0x0100);
             memory(0x0100, 0xA9); // LDA #02
             memory(0x0101, 0x02);
-            memory(0x0102, 0xE9); // SBC #01
+            memory(0x0102, 0xE9); // SBC #01 -> 2 - 1 - 1 = 0 (no need to borrow from next byte)
             memory(0x0103, 0x01);
 
             clock(5);
@@ -2873,7 +2873,7 @@ class CpuTest {
             cpu.pc(0x0100);
             memory(0x0100, 0xA9); // LDA #02
             memory(0x0101, 0x02);
-            memory(0x0102, 0xE9); // SBC #02
+            memory(0x0102, 0xE9); // SBC #02 -> 2 - 2 - 1 = -1 (borrow from next byte)
             memory(0x0103, 0x02);
 
             clock(5);
