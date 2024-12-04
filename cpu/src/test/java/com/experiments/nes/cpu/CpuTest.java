@@ -4068,4 +4068,19 @@ class CpuTest {
             cycle(2, "Fetch opcode"                      ).read(0x0101).a(0x00).y(0x00).flags("..1..IZ.");
         }
     }
+
+    @Nested
+    class TSX {
+        @Test
+        void testImplied() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0xBA); // TSX
+
+            clock(3);
+
+            cycle(0, "Fetch opcode"                      ).read(0x0100).x(0x00).flags("..1..I..");
+            cycle(1, "Fetch next instruction, throw away").read(0x0101).x(0x00).flags("..1..I..");
+            cycle(2, "Fetch opcode"                      ).read(0x0101).x(0xFD).flags("N.1..I..");
+        }
+    }
 }

@@ -239,6 +239,8 @@ public class Cpu {
         operation(0xAA, new StandardOperation(impliedMode, Read, this::transferAtoX));
         // TAY
         operation(0xA8, new StandardOperation(impliedMode, Read, this::transferAtoY));
+        // TSX
+        operation(0xBA, new StandardOperation(impliedMode, Read, this::transferStoX));
     }
 
     private void operation(int opcode, Operation operation) {
@@ -601,6 +603,11 @@ public class Cpu {
     private void transferAtoY() {
         this.y = this.a;
         setZeroNegativeFlags(this.y);
+    }
+
+    private void transferStoX() {
+        this.x = this.s;
+        setZeroNegativeFlags(this.x);
     }
 
     @FunctionalInterface
