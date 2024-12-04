@@ -241,6 +241,12 @@ public class Cpu {
         operation(0xA8, new StandardOperation(impliedMode, Read, this::transferAtoY));
         // TSX
         operation(0xBA, new StandardOperation(impliedMode, Read, this::transferStoX));
+        // TXA
+        operation(0x8A, new StandardOperation(impliedMode, Read, this::transferXtoA));
+        // TXS
+        operation(0x9A, new StandardOperation(impliedMode, Read, this::transferXtoS));
+        // TYA
+        operation(0x98, new StandardOperation(impliedMode, Read, this::transferYtoA));
     }
 
     private void operation(int opcode, Operation operation) {
@@ -608,6 +614,21 @@ public class Cpu {
     private void transferStoX() {
         this.x = this.s;
         setZeroNegativeFlags(this.x);
+    }
+
+    private void transferXtoA() {
+        this.a = this.x;
+        setZeroNegativeFlags(this.a);
+    }
+
+    private void transferXtoS() {
+        this.s = this.x;
+        setZeroNegativeFlags(this.s);
+    }
+
+    private void transferYtoA() {
+        this.a = this.y;
+        setZeroNegativeFlags(this.a);
     }
 
     @FunctionalInterface
