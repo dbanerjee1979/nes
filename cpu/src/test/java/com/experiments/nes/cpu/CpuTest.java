@@ -2078,6 +2078,56 @@ class CpuTest {
             cycle(4, "Fetch value"                ).read(0x0106).a(0x00);
             cycle(5, "Fetch opcode"               ).read(0x0107).a(0x02);
         }
+
+        @Test
+        void testAbsoluteIndirect() {
+            cpu.pc(0x0100);
+            memory(0x1234, 0x05);
+            memory(0x1235, 0x01);
+            memory(0x0100, 0x6C); // JMP ($1234)
+            memory(0x0101, 0x34);
+            memory(0x0102, 0x12);
+            memory(0x0103, 0xA9); // LDA #01
+            memory(0x0104, 0x01);
+            memory(0x0105, 0xA9); // LDA #02
+            memory(0x0106, 0x02);
+
+            clock(8);
+
+            cycle(0, "Fetch opcode"               ).read(0x0100).a(0x00);
+            cycle(1, "Fetch pointer low byte"     ).read(0x0101).a(0x00);
+            cycle(2, "Fetch pointer high byte"    ).read(0x0102).a(0x00);
+            cycle(3, "Fetch address low byte"     ).read(0x1234).a(0x00);
+            cycle(4, "Fetch address high byte"    ).read(0x1235).a(0x00);
+            cycle(5, "Fetch opcode"               ).read(0x0105).a(0x00);
+            cycle(6, "Fetch value"                ).read(0x0106).a(0x00);
+            cycle(7, "Fetch opcode"               ).read(0x0107).a(0x02);
+        }
+
+        @Test
+        void testAbsoluteIndirectPageCrossing() {
+            cpu.pc(0x0100);
+            memory(0x12FF, 0x05);
+            memory(0x1200, 0x01);
+            memory(0x0100, 0x6C); // JMP ($12FF)
+            memory(0x0101, 0xFF);
+            memory(0x0102, 0x12);
+            memory(0x0103, 0xA9); // LDA #01
+            memory(0x0104, 0x01);
+            memory(0x0105, 0xA9); // LDA #02
+            memory(0x0106, 0x02);
+
+            clock(8);
+
+            cycle(0, "Fetch opcode"               ).read(0x0100).a(0x00);
+            cycle(1, "Fetch pointer low byte"     ).read(0x0101).a(0x00);
+            cycle(2, "Fetch pointer high byte"    ).read(0x0102).a(0x00);
+            cycle(3, "Fetch address low byte"     ).read(0x12FF).a(0x00);
+            cycle(4, "Fetch address high byte"    ).read(0x1200).a(0x00);
+            cycle(5, "Fetch opcode"               ).read(0x0105).a(0x00);
+            cycle(6, "Fetch value"                ).read(0x0106).a(0x00);
+            cycle(7, "Fetch opcode"               ).read(0x0107).a(0x02);
+        }
     }
 
     @Nested

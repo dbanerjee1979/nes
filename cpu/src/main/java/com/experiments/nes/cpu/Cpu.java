@@ -40,7 +40,8 @@ public class Cpu {
     enum State {
         FETCH_OPCODE, FETCH_OPCODE_IN_SAME_CYCLE, FETCH_VALUE, FETCH_ADDRESS, READ_EFFECTIVE_ADDRESS, REREAD_EFFECTIVE_ADDRESS,
         READ_EFFECTIVE_ADDRESS_ADD_INDEX, FETCH_EFFECTIVE_ADDRESS_HIGH, FETCH_EFFECTIVE_ADDRESS_HIGH_ADD_INDEX,
-        READ_EFFECTIVE_ADDRESS_FIX_HIGH, FETCH_POINTER, READ_POINTER_ADD_INDEX, FETCH_BOGUS_INSTRUCTION, STORE_RESULT, UPDATE_PC, DATA_AVAILABLE
+        READ_EFFECTIVE_ADDRESS_FIX_HIGH, FETCH_POINTER, FETCH_POINTER_HIGH, READ_POINTER_ADD_INDEX, FETCH_BOGUS_INSTRUCTION,
+        STORE_RESULT, UPDATE_PC, DATA_AVAILABLE
     }
 
     enum OperationType {
@@ -73,6 +74,7 @@ public class Cpu {
         IndirectIndexedMode indirectIndexedMode = new IndirectIndexedMode();
         AccumulatorMode accumulatorMode = new AccumulatorMode();
         ImpliedMode impliedMode = new ImpliedMode();
+        AbsoluteIndirectMode absoluteIndirectMode = new AbsoluteIndirectMode();
 
         operation(0x00, new BreakOperation());
         // ADC
@@ -156,6 +158,7 @@ public class Cpu {
         operation(0xC8, new StandardOperation(impliedMode, Read, this::incrementY));
         // JMP
         operation(0x4C, new StandardOperation(absoluteMode, Jump));
+        operation(0x6C, new StandardOperation(absoluteIndirectMode, Jump));
         // LDA
         operation(0xA9, new StandardOperation(immediateMode, Read, this::loadA));
         operation(0xA5, new StandardOperation(zeroPageMode, Read, this::loadA));
@@ -345,6 +348,11 @@ public class Cpu {
     private State fetchPointer(State nextState) {
         this.pointer = (short) (this.memory.load(this.pc++) & 0x00FF);
         return nextState;
+    }
+
+    private State fetchPointerHigh() {
+        this.pointer = (short) (((this.memory.load(this.pc++) & 0x00FF) << 8) | (this.pointer & 0x00FF));
+        return State.FETCH_ADDRESS;
     }
 
     private short nextPointer() {
@@ -841,6 +849,21 @@ public class Cpu {
                         // For write instructions, the data is already available in a register
                         State.DATA_AVAILABLE);
                 case DATA_AVAILABLE -> executeOperation(operation, operationType);
+                default -> throw new IllegalStateException();
+            };
+        }
+    }
+
+    private class AbsoluteIndirectMode implements AddressingMode {
+        @Override
+        public State clock(Runnable operation, OperationType operationType) {
+            return switch (state) {
+                case FETCH_OPCODE -> State.FETCH_POINTER;
+                case FETCH_POINTER -> fetchPointer(State.FETCH_POINTER_HIGH);
+                case FETCH_POINTER_HIGH -> fetchPointerHigh();
+                case FETCH_ADDRESS -> fetchAddress(State.FETCH_EFFECTIVE_ADDRESS_HIGH, Cpu.this::nextPointer);
+                case FETCH_EFFECTIVE_ADDRESS_HIGH -> fetchAddressHigh(State.UPDATE_PC, Cpu.this::nextPointer);
+                case UPDATE_PC -> updatePC();
                 default -> throw new IllegalStateException();
             };
         }
