@@ -2057,6 +2057,30 @@ class CpuTest {
     }
 
     @Nested
+    class JMP {
+        @Test
+        void testAbsolute() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0x4C); // JMP $0105
+            memory(0x0101, 0x05);
+            memory(0x0102, 0x01);
+            memory(0x0103, 0xA9); // LDA #01
+            memory(0x0104, 0x01);
+            memory(0x0105, 0xA9); // LDA #02
+            memory(0x0106, 0x02);
+
+            clock(6);
+
+            cycle(0, "Fetch opcode"               ).read(0x0100).a(0x00);
+            cycle(1, "Fetch address low byte"     ).read(0x0101).a(0x00);
+            cycle(2, "Fetch address high byte"    ).read(0x0102).a(0x00);
+            cycle(3, "Fetch opcode"               ).read(0x0105).a(0x00);
+            cycle(4, "Fetch value"                ).read(0x0106).a(0x00);
+            cycle(5, "Fetch opcode"               ).read(0x0107).a(0x02);
+        }
+    }
+
+    @Nested
     class LDA {
         @Test
         void testImmediate() {

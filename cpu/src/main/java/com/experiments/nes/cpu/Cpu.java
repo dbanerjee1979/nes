@@ -40,11 +40,11 @@ public class Cpu {
     enum State {
         FETCH_OPCODE, FETCH_OPCODE_IN_SAME_CYCLE, FETCH_VALUE, FETCH_ADDRESS, READ_EFFECTIVE_ADDRESS, REREAD_EFFECTIVE_ADDRESS,
         READ_EFFECTIVE_ADDRESS_ADD_INDEX, FETCH_EFFECTIVE_ADDRESS_HIGH, FETCH_EFFECTIVE_ADDRESS_HIGH_ADD_INDEX,
-        READ_EFFECTIVE_ADDRESS_FIX_HIGH, FETCH_POINTER, READ_POINTER_ADD_INDEX, FETCH_BOGUS_INSTRUCTION, STORE_RESULT, DATA_AVAILABLE
+        READ_EFFECTIVE_ADDRESS_FIX_HIGH, FETCH_POINTER, READ_POINTER_ADD_INDEX, FETCH_BOGUS_INSTRUCTION, STORE_RESULT, UPDATE_PC, DATA_AVAILABLE
     }
 
     enum OperationType {
-        Read, Write, ReadWrite
+        Read, Write, ReadWrite, Jump
     }
 
     private final Memory memory;
@@ -154,6 +154,8 @@ public class Cpu {
         operation(0xE8, new StandardOperation(impliedMode, Read, this::incrementX));
         // INY
         operation(0xC8, new StandardOperation(impliedMode, Read, this::incrementY));
+        // JMP
+        operation(0x4C, new StandardOperation(absoluteMode, Jump));
         // LDA
         operation(0xA9, new StandardOperation(immediateMode, Read, this::loadA));
         operation(0xA5, new StandardOperation(zeroPageMode, Read, this::loadA));
@@ -182,7 +184,7 @@ public class Cpu {
         operation(0x4E, new StandardOperation(absoluteMode, ReadWrite, this::rightShift));
         operation(0x5E, new StandardOperation(absoluteXMode, ReadWrite, this::rightShift));
         // NOP
-        operation(0xEA, new StandardOperation(impliedMode, Read, () -> {}));
+        operation(0xEA, new StandardOperation(impliedMode, Read));
         // OR
         operation(0x09, new StandardOperation(immediateMode, Read, this::or));
         operation(0x05, new StandardOperation(zeroPageMode, Read, this::or));
@@ -403,7 +405,7 @@ public class Cpu {
         operation.run();
         return switch(operationType) {
             case Read -> State.FETCH_OPCODE_IN_SAME_CYCLE;
-            case Write -> State.FETCH_OPCODE;
+            case Write, Jump -> State.FETCH_OPCODE;
             case ReadWrite -> State.STORE_RESULT;
         };
     }
@@ -412,6 +414,11 @@ public class Cpu {
         State nextState = executeOperation(operation, operationType);
         this.a = this.data;
         return nextState;
+    }
+
+    private State updatePC() {
+        this.pc = this.address;
+        return State.FETCH_OPCODE_IN_SAME_CYCLE;
     }
 
     private State storeResult() {
@@ -661,6 +668,10 @@ public class Cpu {
             this.operation = operation;
         }
 
+        public StandardOperation(AddressingMode addressingMode, OperationType operationType) {
+            this(addressingMode, operationType, () -> {});
+        }
+
         @Override
         public State clock() {
             return this.addressingMode.clock(operation, operationType);
@@ -741,15 +752,18 @@ public class Cpu {
             return switch (state) {
                 case FETCH_OPCODE -> State.FETCH_ADDRESS;
                 case FETCH_ADDRESS -> fetchAddress(State.FETCH_EFFECTIVE_ADDRESS_HIGH, Cpu.this::nextPC);
-                case FETCH_EFFECTIVE_ADDRESS_HIGH -> fetchAddressHigh(operationType == Write ?
-                        // For write instructions, the data is already available in a register
-                        State.DATA_AVAILABLE :
-                        // For read instructions, the data becomes available in the next cycle after fetching from memory
-                        State.READ_EFFECTIVE_ADDRESS,
-                        Cpu.this::nextPC);
+                case FETCH_EFFECTIVE_ADDRESS_HIGH -> fetchAddressHigh(switch (operationType) {
+                    // For write instructions, the data is already available in a register
+                    case Write -> State.DATA_AVAILABLE;
+                    // For jump instructions, update the PC and fetch the next instruction
+                    case Jump -> State.UPDATE_PC;
+                    // For read instructions, the data becomes available in the next cycle after fetching from memory
+                    default -> State.READ_EFFECTIVE_ADDRESS;
+                }, Cpu.this::nextPC);
                 case READ_EFFECTIVE_ADDRESS -> readEffectiveAddress(State.DATA_AVAILABLE);
                 case DATA_AVAILABLE -> executeOperation(operation, operationType);
                 case STORE_RESULT -> storeResult();
+                case UPDATE_PC -> updatePC();
                 default -> throw new IllegalStateException();
             };
         }
@@ -782,6 +796,7 @@ public class Cpu {
                         case Read -> State.READ_EFFECTIVE_ADDRESS;
                         // For R/W instructions, the effective address has to be loaded again with the fixed address
                         case ReadWrite -> State.REREAD_EFFECTIVE_ADDRESS;
+                        default -> throw new IllegalStateException();
                     });
                 case DATA_AVAILABLE -> executeOperation(operation, operationType);
                 case STORE_RESULT -> storeResult();
