@@ -41,7 +41,7 @@ public class Cpu {
         FETCH_OPCODE, FETCH_OPCODE_IN_SAME_CYCLE, FETCH_VALUE, FETCH_ADDRESS, READ_EFFECTIVE_ADDRESS, REREAD_EFFECTIVE_ADDRESS,
         READ_EFFECTIVE_ADDRESS_ADD_INDEX, FETCH_EFFECTIVE_ADDRESS_HIGH, FETCH_EFFECTIVE_ADDRESS_HIGH_ADD_INDEX,
         READ_EFFECTIVE_ADDRESS_FIX_HIGH, FETCH_POINTER, FETCH_POINTER_HIGH, READ_POINTER_ADD_INDEX, FETCH_BOGUS_INSTRUCTION,
-        STORE_RESULT, UPDATE_PC, DATA_AVAILABLE
+        STORE_RESULT, UPDATE_PC, READ_STACK_TOP, PUSH_PCH, PUSH_PCL, DATA_AVAILABLE
     }
 
     enum OperationType {
@@ -159,6 +159,8 @@ public class Cpu {
         // JMP
         operation(0x4C, new StandardOperation(absoluteMode, Jump));
         operation(0x6C, new StandardOperation(absoluteIndirectMode, Jump));
+        // JSR
+        operation(0x20, new JumpToSubroutine());
         // LDA
         operation(0xA9, new StandardOperation(immediateMode, Read, this::loadA));
         operation(0xA5, new StandardOperation(zeroPageMode, Read, this::loadA));
@@ -432,6 +434,27 @@ public class Cpu {
     private State storeResult() {
         this.memory.store(this.address, this.data);
         return State.FETCH_OPCODE;
+    }
+
+    private State readStackTop(State nextState) {
+        this.memory.load((short) (0x0100 + (this.s & 0x00FF)));
+        return nextState;
+    }
+
+    private State pushPCH() {
+        this.memory.store((short) (0x0100 + (this.s-- & 0x00FF)), (byte) ((this.pc >> 8) & 0x00FF));
+        return State.PUSH_PCL;
+    }
+
+    private State pushPCL() {
+        this.memory.store((short) (0x0100 + (this.s-- & 0x00FF)), (byte) (this.pc & 0x00FF));
+        return State.UPDATE_PC;
+    }
+
+    private State fetchAddressHighAndUpdatePC() {
+        State nextState = fetchAddressHigh(State.FETCH_OPCODE, this::nextPC);
+        this.pc = this.address;
+        return nextState;
     }
 
     private void setZeroNegativeFlags(byte value) {
@@ -890,6 +913,21 @@ public class Cpu {
                 // CPU requires minimum 2 cycles per operation, so it does a bogus fetch of PC
                 case FETCH_BOGUS_INSTRUCTION -> fetchBogusInstruction();
                 case DATA_AVAILABLE -> executeOperation(operation, operationType);
+                default -> throw new IllegalStateException();
+            };
+        }
+    }
+
+    private class JumpToSubroutine implements Operation {
+        @Override
+        public State clock() {
+            return switch (state) {
+                case FETCH_OPCODE -> State.FETCH_ADDRESS;
+                case FETCH_ADDRESS -> fetchAddress(State.READ_STACK_TOP, Cpu.this::nextPC);
+                case READ_STACK_TOP -> readStackTop(State.PUSH_PCH);
+                case PUSH_PCH -> pushPCH();
+                case PUSH_PCL -> pushPCL();
+                case UPDATE_PC -> fetchAddressHighAndUpdatePC();
                 default -> throw new IllegalStateException();
             };
         }

@@ -2131,6 +2131,27 @@ class CpuTest {
     }
 
     @Nested
+    class JSR {
+        @Test
+        void testJump() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0x20); // JSR $0105
+            memory(0x0101, 0x05);
+            memory(0x0102, 0x01);
+
+            clock(7);
+
+            cycle(0, "Fetch opcode"           ).read(0x0100       ).s(0xFD);
+            cycle(1, "Fetch address low byte" ).read(0x0101       ).s(0xFD);
+            cycle(2, "Internal operation"     ).read(0x01FD       ).s(0xFD);
+            cycle(3, "push PCH"               ).write(0x01FD, 0x01).s(0xFC);
+            cycle(4, "push PCL"               ).write(0x01FC, 0x02).s(0xFB);
+            cycle(5, "Fetch address high byte").read(0x0102       ).s(0xFB);
+            cycle(6, "Fetch opcode"           ).read(0x0105       ).s(0xFB);
+        }
+    }
+
+    @Nested
     class LDA {
         @Test
         void testImmediate() {
