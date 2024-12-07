@@ -359,16 +359,16 @@ public class Cpu {
         return this.pc++;
     }
 
-    private short extendByte(byte value) {
-        return (short) (value & 0x00FF);
-    }
-
     private short setHighByte(int value, byte high) {
         return (short) (high << 8 | (value & 0x00FF));
     }
 
     private short setLowByte(short value, byte low) {
         return (short) ((value & 0xFF00) | (low & 0x00FF));
+    }
+
+    private short initLowByte(byte low) {
+        return setLowByte((short) 0, low);
     }
 
     private short setLowByte(short value, int low) {
@@ -390,7 +390,7 @@ public class Cpu {
     }
 
     private void fetchOpcode() {
-        this.operation = this.operations[extendByte(this.memory.load(this.pc++))];
+        this.operation = this.operations[initLowByte(this.memory.load(this.pc++))];
     }
 
     private State fetchImmediate() {
@@ -399,7 +399,7 @@ public class Cpu {
     }
 
     private State fetchPointer(State nextState) {
-        this.pointer = extendByte(this.memory.load(this.pc++));
+        this.pointer = initLowByte(this.memory.load(this.pc++));
         return nextState;
     }
 
@@ -421,7 +421,7 @@ public class Cpu {
     }
 
     private State fetchAddress(State nextState, ShortSupplier pointer) {
-        this.address = extendByte(this.memory.load(pointer.get()));
+        this.address = initLowByte(this.memory.load(pointer.get()));
         return nextState;
     }
 
