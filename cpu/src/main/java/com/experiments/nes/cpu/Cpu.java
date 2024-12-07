@@ -363,10 +363,6 @@ public class Cpu {
         return (short) (value & 0x00FF);
     }
 
-    private int asByte(short value) {
-        return value & 0x00FF;
-    }
-
     private short setHighByte(int value, byte high) {
         return (short) (high << 8 | (value & 0x00FF));
     }
