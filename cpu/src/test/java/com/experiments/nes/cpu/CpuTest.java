@@ -3468,6 +3468,42 @@ class CpuTest {
     }
 
     @Nested
+    class RTS {
+        @Test
+        void testReturn() {
+            cpu.pc(0x0100);
+            memory(0x0100, 0x20); // JSR $0105
+            memory(0x0101, 0x05);
+            memory(0x0102, 0x01);
+            memory(0x0103, 0x69); // ADC #01
+            memory(0x0104, 0x01);
+            memory(0x0105, 0xA9); // LDA #02
+            memory(0x0106, 0x02);
+            memory(0x0107, 0x60); // RTS
+
+            clock(17);
+
+            cycle(0,  "Fetch opcode"                      ).read(0x0100       ).s(0xFD).a(0x00);
+            cycle(1,  "Fetch address low byte"            ).read(0x0101       ).s(0xFD).a(0x00);
+            cycle(2,  "Internal operation"                ).read(0x01FD       ).s(0xFD).a(0x00);
+            cycle(3,  "push PCH"                          ).write(0x01FD, 0x01).s(0xFC).a(0x00);
+            cycle(4,  "push PCL"                          ).write(0x01FC, 0x02).s(0xFB).a(0x00);
+            cycle(5,  "Fetch address high byte"           ).read(0x0102       ).s(0xFB).a(0x00);
+            cycle(6,  "Fetch opcode"                      ).read(0x0105       ).s(0xFB).a(0x00);
+            cycle(7,  "Fetch value"                       ).read(0x0106       ).s(0xFB).a(0x00);
+            cycle(8,  "Fetch opcode"                      ).read(0x0107       ).s(0xFB).a(0x02);
+            cycle(9,  "Fetch next instruction, throw away").read(0x0108       ).s(0xFB).a(0x02);
+            cycle(10, "Increment S"                       ).read(0x01FB       ).s(0xFC).a(0x02);
+            cycle(11, "Pull PCL from stack"               ).read(0x01FC       ).s(0xFD).a(0x02);
+            cycle(12, "Pull PCH from stack"               ).read(0x01FD       ).s(0xFD).a(0x02);
+            cycle(13, "Increment PC"                      ).read(0x0102       ).s(0xFD).a(0x02);
+            cycle(14, "Fetch opcode"                      ).read(0x0103       ).s(0xFD).a(0x02);
+            cycle(15, "Fetch value"                       ).read(0x0104       ).s(0xFD).a(0x02);
+            cycle(16, "Fetch opcode"                      ).read(0x0105       ).s(0xFD).a(0x03);
+        }
+    }
+
+    @Nested
     class SBC {
         @Test
         void testImmediate() {

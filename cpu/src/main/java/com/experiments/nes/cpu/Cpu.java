@@ -41,7 +41,7 @@ public class Cpu {
         FETCH_OPCODE, FETCH_OPCODE_IN_SAME_CYCLE, FETCH_VALUE, FETCH_ADDRESS, READ_EFFECTIVE_ADDRESS, REREAD_EFFECTIVE_ADDRESS,
         READ_EFFECTIVE_ADDRESS_ADD_INDEX, FETCH_EFFECTIVE_ADDRESS_HIGH, FETCH_EFFECTIVE_ADDRESS_HIGH_ADD_INDEX,
         READ_EFFECTIVE_ADDRESS_FIX_HIGH, FETCH_POINTER, FETCH_POINTER_HIGH, READ_POINTER_ADD_INDEX, FETCH_BOGUS_INSTRUCTION,
-        STORE_RESULT, UPDATE_PC, READ_STACK_TOP, PUSH_PCH, PUSH_PCL, DATA_AVAILABLE
+        STORE_RESULT, UPDATE_PC, READ_STACK_TOP, PUSH_PCH, PUSH_PCL, INCREMENT_SP, POP_PCL, POP_PCH, INCREMENT_PC, DATA_AVAILABLE
     }
 
     enum OperationType {
@@ -63,18 +63,18 @@ public class Cpu {
 
     private final Operation[] operations = new Operation[255];
     {
-        ImmediateMode immediateMode = new ImmediateMode();
-        ZeroPageMode zeroPageMode = new ZeroPageMode();
-        ZeroPageIndexedMode zeroPageXMode = new ZeroPageIndexedMode(this::x);
-        ZeroPageIndexedMode zeroPageYMode = new ZeroPageIndexedMode(this::y);
-        AbsoluteMode absoluteMode = new AbsoluteMode();
-        AbsoluteIndexedMode absoluteXMode = new AbsoluteIndexedMode(this::x);
-        AbsoluteIndexedMode absoluteYMode = new AbsoluteIndexedMode(this::y);
-        IndexedIndirectMode indexedIndirectMode = new IndexedIndirectMode();
-        IndirectIndexedMode indirectIndexedMode = new IndirectIndexedMode();
-        AccumulatorMode accumulatorMode = new AccumulatorMode();
-        ImpliedMode impliedMode = new ImpliedMode();
-        AbsoluteIndirectMode absoluteIndirectMode = new AbsoluteIndirectMode();
+        ImmediateMode immediateMode = new ImmediateMode(this);
+        ZeroPageMode zeroPageMode = new ZeroPageMode(this);
+        ZeroPageIndexedMode zeroPageXMode = new ZeroPageIndexedMode(this, this::x);
+        ZeroPageIndexedMode zeroPageYMode = new ZeroPageIndexedMode(this, this::y);
+        AbsoluteMode absoluteMode = new AbsoluteMode(this);
+        AbsoluteIndexedMode absoluteXMode = new AbsoluteIndexedMode(this, this::x);
+        AbsoluteIndexedMode absoluteYMode = new AbsoluteIndexedMode(this, this::y);
+        IndexedIndirectMode indexedIndirectMode = new IndexedIndirectMode(this);
+        IndirectIndexedMode indirectIndexedMode = new IndirectIndexedMode(this);
+        AccumulatorMode accumulatorMode = new AccumulatorMode(this);
+        ImpliedMode impliedMode = new ImpliedMode(this);
+        AbsoluteIndirectMode absoluteIndirectMode = new AbsoluteIndirectMode(this);
 
         operation(0x00, new BreakOperation());
         // ADC
@@ -160,7 +160,7 @@ public class Cpu {
         operation(0x4C, new StandardOperation(absoluteMode, Jump));
         operation(0x6C, new StandardOperation(absoluteIndirectMode, Jump));
         // JSR
-        operation(0x20, new JumpToSubroutine());
+        operation(0x20, new JumpToSubroutine(this));
         // LDA
         operation(0xA9, new StandardOperation(immediateMode, Read, this::loadA));
         operation(0xA5, new StandardOperation(zeroPageMode, Read, this::loadA));
@@ -211,6 +211,8 @@ public class Cpu {
         operation(0x76, new StandardOperation(zeroPageXMode, ReadWrite, this::rotateRight));
         operation(0x6E, new StandardOperation(absoluteMode, ReadWrite, this::rotateRight));
         operation(0x7E, new StandardOperation(absoluteXMode, ReadWrite, this::rotateRight));
+        // RTS
+        operation(0x60, new ReturnFromSubroutine(this));
         // SBC
         operation(0xE9, new StandardOperation(immediateMode, Read, this::subtractWithCarry));
         operation(0xE5, new StandardOperation(zeroPageMode, Read, this::subtractWithCarry));
@@ -326,7 +328,7 @@ public class Cpu {
         if (state == State.FETCH_OPCODE) {
             fetchOpcode();
         }
-        state = operation.clock();
+        state = operation.clock(state);
         if (state == State.FETCH_OPCODE_IN_SAME_CYCLE) {
             this.state = State.FETCH_OPCODE;
             clock();
@@ -385,10 +387,10 @@ public class Cpu {
         return (addressLow & 0xFF00) == 0 ? State.READ_EFFECTIVE_ADDRESS : State.READ_EFFECTIVE_ADDRESS_FIX_HIGH;
     }
 
-    private State fetchBogusInstruction() {
+    private State fetchBogusInstruction(State nextState) {
         this.memory.load(this.pc);
         this.data = this.a;
-        return State.DATA_AVAILABLE;
+        return nextState;
     }
 
     private State readEffectiveAddressFixHigh(State nextState) {
@@ -455,6 +457,27 @@ public class Cpu {
         State nextState = fetchAddressHigh(State.FETCH_OPCODE, this::nextPC);
         this.pc = this.address;
         return nextState;
+    }
+
+    private State incrementSP() {
+        this.memory.load((short) (0x100 + (this.s & 0x00FF)));
+        this.s++;
+        return State.POP_PCL;
+    }
+
+    private State popPCL() {
+        this.pc = (short) ((this.pc & 0xFF00) | (this.memory.load((short) (0x0100 + (this.s++ & 0x00FF))) & 0x00FF));
+        return State.POP_PCH;
+    }
+
+    private State popPCH() {
+        this.pc = (short) ((this.pc & 0x00FF) | ((this.memory.load((short) (0x0100 + (this.s & 0x00FF))) << 8) & 0xFF00));
+        return State.INCREMENT_PC;
+    }
+
+    private State incrementPC() {
+        this.memory.load(this.pc++);
+        return State.FETCH_OPCODE;
     }
 
     private void setZeroNegativeFlags(byte value) {
@@ -685,7 +708,7 @@ public class Cpu {
     }
 
     private interface Operation {
-        State clock();
+        State clock(State state);
     }
 
     private static class StandardOperation implements Operation {
@@ -704,123 +727,111 @@ public class Cpu {
         }
 
         @Override
-        public State clock() {
-            return this.addressingMode.clock(operation, operationType);
+        public State clock(State state) {
+            return this.addressingMode.clock(state, operation, operationType);
         }
     }
 
     private static class BreakOperation implements Operation {
         @Override
-        public State clock() {
+        public State clock(State state) {
             return State.FETCH_VALUE;
         }
     }
 
     private interface AddressingMode {
-        State clock(Runnable operation, OperationType operationType);
+        State clock(State state, Runnable operation, OperationType operationType);
     }
 
-    private class ImmediateMode implements AddressingMode {
+    private record ImmediateMode(Cpu cpu) implements AddressingMode {
         @Override
-        public State clock(Runnable operation, OperationType operationType) {
+        public State clock(State state, Runnable operation, OperationType operationType) {
             return switch (state) {
                 case FETCH_OPCODE -> State.FETCH_VALUE;
-                case FETCH_VALUE -> fetchImmediate();
-                case DATA_AVAILABLE -> executeOperation(operation, operationType);
+                case FETCH_VALUE -> cpu.fetchImmediate();
+                case DATA_AVAILABLE -> cpu.executeOperation(operation, operationType);
                 default -> throw new IllegalStateException();
             };
         }
     }
 
-    private class ZeroPageMode implements AddressingMode {
+    private record ZeroPageMode(Cpu cpu) implements AddressingMode {
         @Override
-        public State clock(Runnable operation, OperationType operationType) {
+        public State clock(State state, Runnable operation, OperationType operationType) {
             return switch (state) {
                 case FETCH_OPCODE -> State.FETCH_ADDRESS;
-                case FETCH_ADDRESS -> fetchAddress(operationType == Write ?
+                case FETCH_ADDRESS -> cpu.fetchAddress(operationType == Write ?
                                 // For write instructions, the data is already available in a register
                                 State.DATA_AVAILABLE :
                                 // For read instructions, the data becomes available in the next cycle after fetching from memory
                                 State.READ_EFFECTIVE_ADDRESS,
-                        Cpu.this::nextPC);
-                case READ_EFFECTIVE_ADDRESS -> readEffectiveAddress(State.DATA_AVAILABLE);
-                case DATA_AVAILABLE -> executeOperation(operation, operationType);
-                case STORE_RESULT -> storeResult();
+                        cpu::nextPC);
+                case READ_EFFECTIVE_ADDRESS -> cpu.readEffectiveAddress(State.DATA_AVAILABLE);
+                case DATA_AVAILABLE -> cpu.executeOperation(operation, operationType);
+                case STORE_RESULT -> cpu.storeResult();
                 default -> throw new IllegalStateException();
             };
         }
     }
 
-    private class ZeroPageIndexedMode implements AddressingMode {
-        private final ByteSupplier index;
-
-        private ZeroPageIndexedMode(ByteSupplier index) {
-            this.index = index;
-        }
-
+    private record ZeroPageIndexedMode(Cpu cpu, ByteSupplier index) implements AddressingMode {
         @Override
-        public State clock(Runnable operation, OperationType operationType) {
+        public State clock(State state, Runnable operation, OperationType operationType) {
             return switch (state) {
                 case FETCH_OPCODE -> State.FETCH_ADDRESS;
-                case FETCH_ADDRESS -> fetchAddress(State.READ_EFFECTIVE_ADDRESS_ADD_INDEX, Cpu.this::nextPC);
-                case READ_EFFECTIVE_ADDRESS_ADD_INDEX -> readEffectiveAddressAddIndex(operationType == Write ?
+                case FETCH_ADDRESS -> cpu.fetchAddress(State.READ_EFFECTIVE_ADDRESS_ADD_INDEX, cpu::nextPC);
+                case READ_EFFECTIVE_ADDRESS_ADD_INDEX -> cpu.readEffectiveAddressAddIndex(operationType == Write ?
                         // For write instructions, the data is already available in a register
                         State.DATA_AVAILABLE :
                         // For read instructions, the data becomes available in the next cycle after fetching from memory
                         State.READ_EFFECTIVE_ADDRESS,
                         index.get());
-                case READ_EFFECTIVE_ADDRESS -> readEffectiveAddress(State.DATA_AVAILABLE);
-                case DATA_AVAILABLE -> executeOperation(operation, operationType);
-                case STORE_RESULT -> storeResult();
+                case READ_EFFECTIVE_ADDRESS -> cpu.readEffectiveAddress(State.DATA_AVAILABLE);
+                case DATA_AVAILABLE -> cpu.executeOperation(operation, operationType);
+                case STORE_RESULT -> cpu.storeResult();
                 default -> throw new IllegalStateException();
             };
         }
     }
 
-    private class AbsoluteMode implements AddressingMode {
+    private record AbsoluteMode(Cpu cpu) implements AddressingMode {
         @Override
-        public State clock(Runnable operation, OperationType operationType) {
+        public State clock(State state, Runnable operation, OperationType operationType) {
             return switch (state) {
                 case FETCH_OPCODE -> State.FETCH_ADDRESS;
-                case FETCH_ADDRESS -> fetchAddress(State.FETCH_EFFECTIVE_ADDRESS_HIGH, Cpu.this::nextPC);
-                case FETCH_EFFECTIVE_ADDRESS_HIGH -> fetchAddressHigh(switch (operationType) {
+                case FETCH_ADDRESS -> cpu.fetchAddress(State.FETCH_EFFECTIVE_ADDRESS_HIGH, cpu::nextPC);
+                case FETCH_EFFECTIVE_ADDRESS_HIGH -> cpu.fetchAddressHigh(switch (operationType) {
                     // For write instructions, the data is already available in a register
                     case Write -> State.DATA_AVAILABLE;
                     // For jump instructions, update the PC and fetch the next instruction
                     case Jump -> State.UPDATE_PC;
                     // For read instructions, the data becomes available in the next cycle after fetching from memory
                     default -> State.READ_EFFECTIVE_ADDRESS;
-                }, Cpu.this::nextPC);
-                case READ_EFFECTIVE_ADDRESS -> readEffectiveAddress(State.DATA_AVAILABLE);
-                case DATA_AVAILABLE -> executeOperation(operation, operationType);
-                case STORE_RESULT -> storeResult();
-                case UPDATE_PC -> updatePC();
+                }, cpu::nextPC);
+                case READ_EFFECTIVE_ADDRESS -> cpu.readEffectiveAddress(State.DATA_AVAILABLE);
+                case DATA_AVAILABLE -> cpu.executeOperation(operation, operationType);
+                case STORE_RESULT -> cpu.storeResult();
+                case UPDATE_PC -> cpu.updatePC();
                 default -> throw new IllegalStateException();
             };
         }
     }
 
-    private class AbsoluteIndexedMode implements AddressingMode {
-        private final ByteSupplier index;
-
-        private AbsoluteIndexedMode(ByteSupplier index) {
-            this.index = index;
-        }
-
+    private record AbsoluteIndexedMode(Cpu cpu, ByteSupplier index) implements AddressingMode {
         @Override
-        public State clock(Runnable operation, OperationType operationType) {
+        public State clock(State state, Runnable operation, OperationType operationType) {
             return switch (state) {
                 case FETCH_OPCODE -> State.FETCH_ADDRESS;
-                case FETCH_ADDRESS -> fetchAddress(State.FETCH_EFFECTIVE_ADDRESS_HIGH_ADD_INDEX, Cpu.this::nextPC);
-                case FETCH_EFFECTIVE_ADDRESS_HIGH_ADD_INDEX -> fetchAddressHighAddIndex(Cpu.this::nextPC, this.index.get());
-                case READ_EFFECTIVE_ADDRESS -> readEffectiveAddress(operationType == ReadWrite ?
+                case FETCH_ADDRESS -> cpu.fetchAddress(State.FETCH_EFFECTIVE_ADDRESS_HIGH_ADD_INDEX, cpu::nextPC);
+                case FETCH_EFFECTIVE_ADDRESS_HIGH_ADD_INDEX -> cpu.fetchAddressHighAddIndex(cpu::nextPC, this.index.get());
+                case READ_EFFECTIVE_ADDRESS -> cpu.readEffectiveAddress(operationType == ReadWrite ?
                         // For R/W instructions, the CPU loads the effective address twice, since the first time
                         // might have crossed the page boundary
                         State.REREAD_EFFECTIVE_ADDRESS :
                         // Otherwise the data is available
                         State.DATA_AVAILABLE);
-                case REREAD_EFFECTIVE_ADDRESS -> readEffectiveAddress(State.DATA_AVAILABLE);
-                case READ_EFFECTIVE_ADDRESS_FIX_HIGH -> readEffectiveAddressFixHigh(switch (operationType) {
+                case REREAD_EFFECTIVE_ADDRESS -> cpu.readEffectiveAddress(State.DATA_AVAILABLE);
+                case READ_EFFECTIVE_ADDRESS_FIX_HIGH -> cpu.readEffectiveAddressFixHigh(switch (operationType) {
                         // For write instructions, the data is already available in a register
                         case Write -> State.DATA_AVAILABLE;
                         // For read instructions, the data becomes available in the next cycle after fetching from memory
@@ -829,105 +840,121 @@ public class Cpu {
                         case ReadWrite -> State.REREAD_EFFECTIVE_ADDRESS;
                         default -> throw new IllegalStateException();
                     });
-                case DATA_AVAILABLE -> executeOperation(operation, operationType);
-                case STORE_RESULT -> storeResult();
+                case DATA_AVAILABLE -> cpu.executeOperation(operation, operationType);
+                case STORE_RESULT -> cpu.storeResult();
                 default -> throw new IllegalStateException();
             };
         }
     }
 
-    private class IndexedIndirectMode implements AddressingMode {
+    private record IndexedIndirectMode(Cpu cpu) implements AddressingMode {
         @Override
-        public State clock(Runnable operation, OperationType operationType) {
+        public State clock(State state, Runnable operation, OperationType operationType) {
             return switch (state) {
                 case FETCH_OPCODE -> State.FETCH_POINTER;
-                case FETCH_POINTER -> fetchPointer(State.READ_POINTER_ADD_INDEX);
-                case READ_POINTER_ADD_INDEX -> readPointerAddIndex();
-                case FETCH_ADDRESS -> fetchAddress(State.FETCH_EFFECTIVE_ADDRESS_HIGH, Cpu.this::nextPointer);
-                case FETCH_EFFECTIVE_ADDRESS_HIGH -> fetchAddressHigh(operationType == Read ?
+                case FETCH_POINTER -> cpu.fetchPointer(State.READ_POINTER_ADD_INDEX);
+                case READ_POINTER_ADD_INDEX -> cpu.readPointerAddIndex();
+                case FETCH_ADDRESS -> cpu.fetchAddress(State.FETCH_EFFECTIVE_ADDRESS_HIGH, cpu::nextPointer);
+                case FETCH_EFFECTIVE_ADDRESS_HIGH -> cpu.fetchAddressHigh(operationType == Read ?
                                 // For read instructions, the data becomes available in the next cycle after fetching from memory
                                 State.READ_EFFECTIVE_ADDRESS :
                                 // For write instructions, the data is already available in a register
                                 State.DATA_AVAILABLE,
-                        Cpu.this::nextPointer);
-                case READ_EFFECTIVE_ADDRESS -> readEffectiveAddress(State.DATA_AVAILABLE);
-                case DATA_AVAILABLE -> executeOperation(operation, operationType);
+                        cpu::nextPointer);
+                case READ_EFFECTIVE_ADDRESS -> cpu.readEffectiveAddress(State.DATA_AVAILABLE);
+                case DATA_AVAILABLE -> cpu.executeOperation(operation, operationType);
                 default -> throw new IllegalStateException();
             };
         }
     }
 
-    private class IndirectIndexedMode implements AddressingMode {
+    private record IndirectIndexedMode(Cpu cpu) implements AddressingMode {
         @Override
-        public State clock(Runnable operation, OperationType operationType) {
+        public State clock(State state, Runnable operation, OperationType operationType) {
             return switch (state) {
                 case FETCH_OPCODE -> State.FETCH_POINTER;
-                case FETCH_POINTER -> fetchPointer(State.FETCH_ADDRESS);
-                case FETCH_ADDRESS -> fetchAddress(State.FETCH_EFFECTIVE_ADDRESS_HIGH_ADD_INDEX, Cpu.this::nextPointer);
-                case FETCH_EFFECTIVE_ADDRESS_HIGH_ADD_INDEX -> fetchAddressHighAddIndex(Cpu.this::nextPointer, y);
-                case READ_EFFECTIVE_ADDRESS -> readEffectiveAddress(State.DATA_AVAILABLE);
-                case READ_EFFECTIVE_ADDRESS_FIX_HIGH -> readEffectiveAddressFixHigh(operationType == Read ?
+                case FETCH_POINTER -> cpu.fetchPointer(State.FETCH_ADDRESS);
+                case FETCH_ADDRESS -> cpu.fetchAddress(State.FETCH_EFFECTIVE_ADDRESS_HIGH_ADD_INDEX, cpu::nextPointer);
+                case FETCH_EFFECTIVE_ADDRESS_HIGH_ADD_INDEX -> cpu.fetchAddressHighAddIndex(cpu::nextPointer, cpu.y());
+                case READ_EFFECTIVE_ADDRESS -> cpu.readEffectiveAddress(State.DATA_AVAILABLE);
+                case READ_EFFECTIVE_ADDRESS_FIX_HIGH -> cpu.readEffectiveAddressFixHigh(operationType == Read ?
                         // For read instructions, the data becomes available in the next cycle after fetching from memory
                         State.READ_EFFECTIVE_ADDRESS :
                         // For write instructions, the data is already available in a register
                         State.DATA_AVAILABLE);
-                case DATA_AVAILABLE -> executeOperation(operation, operationType);
+                case DATA_AVAILABLE -> cpu.executeOperation(operation, operationType);
                 default -> throw new IllegalStateException();
             };
         }
     }
 
-    private class AbsoluteIndirectMode implements AddressingMode {
+    private record AbsoluteIndirectMode(Cpu cpu) implements AddressingMode {
         @Override
-        public State clock(Runnable operation, OperationType operationType) {
+        public State clock(State state, Runnable operation, OperationType operationType) {
             return switch (state) {
                 case FETCH_OPCODE -> State.FETCH_POINTER;
-                case FETCH_POINTER -> fetchPointer(State.FETCH_POINTER_HIGH);
-                case FETCH_POINTER_HIGH -> fetchPointerHigh();
-                case FETCH_ADDRESS -> fetchAddress(State.FETCH_EFFECTIVE_ADDRESS_HIGH, Cpu.this::nextPointer);
-                case FETCH_EFFECTIVE_ADDRESS_HIGH -> fetchAddressHigh(State.UPDATE_PC, Cpu.this::nextPointer);
-                case UPDATE_PC -> updatePC();
+                case FETCH_POINTER -> cpu.fetchPointer(State.FETCH_POINTER_HIGH);
+                case FETCH_POINTER_HIGH -> cpu.fetchPointerHigh();
+                case FETCH_ADDRESS -> cpu.fetchAddress(State.FETCH_EFFECTIVE_ADDRESS_HIGH, cpu::nextPointer);
+                case FETCH_EFFECTIVE_ADDRESS_HIGH -> cpu.fetchAddressHigh(State.UPDATE_PC, cpu::nextPointer);
+                case UPDATE_PC -> cpu.updatePC();
                 default -> throw new IllegalStateException();
             };
         }
     }
 
-    private class AccumulatorMode implements AddressingMode {
+    private record AccumulatorMode(Cpu cpu) implements AddressingMode {
         @Override
-        public State clock(Runnable operation, OperationType operationType) {
+        public State clock(State state, Runnable operation, OperationType operationType) {
             return switch (state) {
                 case FETCH_OPCODE -> State.FETCH_BOGUS_INSTRUCTION;
                 // CPU requires minimum 2 cycles per operation, so it does a bogus fetch of PC
-                case FETCH_BOGUS_INSTRUCTION -> fetchBogusInstruction();
-                case DATA_AVAILABLE -> executeOperationStoreAccumulator(operation, operationType);
+                case FETCH_BOGUS_INSTRUCTION -> cpu.fetchBogusInstruction(State.DATA_AVAILABLE);
+                case DATA_AVAILABLE -> cpu.executeOperationStoreAccumulator(operation, operationType);
                 default -> throw new IllegalStateException();
             };
         }
     }
 
-    private class ImpliedMode implements AddressingMode {
+    private record ImpliedMode(Cpu cpu) implements AddressingMode {
         @Override
-        public State clock(Runnable operation, OperationType operationType) {
+        public State clock(State state, Runnable operation, OperationType operationType) {
             return switch (state) {
                 case FETCH_OPCODE -> State.FETCH_BOGUS_INSTRUCTION;
                 // CPU requires minimum 2 cycles per operation, so it does a bogus fetch of PC
-                case FETCH_BOGUS_INSTRUCTION -> fetchBogusInstruction();
-                case DATA_AVAILABLE -> executeOperation(operation, operationType);
+                case FETCH_BOGUS_INSTRUCTION -> cpu.fetchBogusInstruction(State.DATA_AVAILABLE);
+                case DATA_AVAILABLE -> cpu.executeOperation(operation, operationType);
                 default -> throw new IllegalStateException();
             };
         }
     }
 
-    private class JumpToSubroutine implements Operation {
+    private record JumpToSubroutine(Cpu cpu) implements Operation {
         @Override
-        public State clock() {
+        public State clock(State state) {
             return switch (state) {
                 case FETCH_OPCODE -> State.FETCH_ADDRESS;
-                case FETCH_ADDRESS -> fetchAddress(State.READ_STACK_TOP, Cpu.this::nextPC);
-                case READ_STACK_TOP -> readStackTop(State.PUSH_PCH);
-                case PUSH_PCH -> pushPCH();
-                case PUSH_PCL -> pushPCL();
-                case UPDATE_PC -> fetchAddressHighAndUpdatePC();
+                case FETCH_ADDRESS -> cpu.fetchAddress(State.READ_STACK_TOP, cpu::nextPC);
+                case READ_STACK_TOP -> cpu.readStackTop(State.PUSH_PCH);
+                case PUSH_PCH -> cpu.pushPCH();
+                case PUSH_PCL -> cpu.pushPCL();
+                case UPDATE_PC -> cpu.fetchAddressHighAndUpdatePC();
+                default -> throw new IllegalStateException();
+            };
+        }
+    }
+
+    private record ReturnFromSubroutine(Cpu cpu) implements Operation {
+        @Override
+        public State clock(State state) {
+            return switch (state) {
+                case FETCH_OPCODE -> State.FETCH_BOGUS_INSTRUCTION;
+                // CPU requires minimum 2 cycles per operation, so it does a bogus fetch of PC
+                case FETCH_BOGUS_INSTRUCTION -> cpu.fetchBogusInstruction(State.INCREMENT_SP);
+                case INCREMENT_SP -> cpu.incrementSP();
+                case POP_PCL -> cpu.popPCL();
+                case POP_PCH -> cpu.popPCH();
+                case INCREMENT_PC -> cpu.incrementPC();
                 default -> throw new IllegalStateException();
             };
         }
