@@ -38,10 +38,30 @@ public class Cpu {
     }
 
     enum State {
-        FETCH_OPCODE, FETCH_OPCODE_IN_SAME_CYCLE, FETCH_VALUE, FETCH_ADDRESS, READ_EFFECTIVE_ADDRESS, REREAD_EFFECTIVE_ADDRESS,
-        READ_EFFECTIVE_ADDRESS_ADD_INDEX, FETCH_EFFECTIVE_ADDRESS_HIGH, FETCH_EFFECTIVE_ADDRESS_HIGH_ADD_INDEX,
-        READ_EFFECTIVE_ADDRESS_FIX_HIGH, FETCH_POINTER, FETCH_POINTER_HIGH, READ_POINTER_ADD_INDEX, FETCH_BOGUS_INSTRUCTION,
-        STORE_RESULT, UPDATE_PC, READ_STACK_TOP, PUSH_PCH, PUSH_PCL, INCREMENT_SP, POP_PCL, POP_PCH, INCREMENT_PC, DATA_AVAILABLE
+        FETCH_OPCODE,
+        FETCH_OPCODE_IN_SAME_CYCLE,
+        FETCH_VALUE,
+        FETCH_ADDRESS,
+        READ_EFFECTIVE_ADDRESS,
+        REREAD_EFFECTIVE_ADDRESS,
+        READ_EFFECTIVE_ADDRESS_ADD_INDEX,
+        FETCH_EFFECTIVE_ADDRESS_HIGH,
+        FETCH_EFFECTIVE_ADDRESS_HIGH_ADD_INDEX,
+        READ_EFFECTIVE_ADDRESS_FIX_HIGH,
+        FETCH_POINTER,
+        FETCH_POINTER_HIGH,
+        READ_POINTER_ADD_INDEX,
+        FETCH_BOGUS_INSTRUCTION,
+        STORE_RESULT,
+        UPDATE_PC,
+        READ_STACK_TOP,
+        PUSH_PCH,
+        PUSH_PCL,
+        INCREMENT_SP,
+        POP_PCL,
+        POP_PCH,
+        INCREMENT_PC,
+        DATA_AVAILABLE
     }
 
     enum OperationType {
@@ -339,9 +359,42 @@ public class Cpu {
         return this.pc++;
     }
 
+    private short extendByte(byte value) {
+        return (short) (value & 0x00FF);
+    }
+
+    private int asByte(short value) {
+        return value & 0x00FF;
+    }
+
+    private short setHighByte(int value, byte high) {
+        return (short) (high << 8 | (value & 0x00FF));
+    }
+
+    private short setLowByte(short value, byte low) {
+        return (short) ((value & 0xFF00) | (low & 0x00FF));
+    }
+
+    private short setLowByte(short value, int low) {
+        return (short) ((value & 0xFF00) | (low & 0x00FF));
+    }
+
+    private short add(short value, int addend) {
+        // The ALU operates on bytes, so the addend is only added to the low byte
+        // If the sum overflows, the result will be wrong (sum less than the original value), and the sum must be fixed
+        return setLowByte(value, value + addend);
+    }
+
+    private byte highByte(short value) {
+        return (byte) (value >> 8);
+    }
+
+    private byte lowByte(short value) {
+        return (byte) (value & 0x00FF);
+    }
+
     private void fetchOpcode() {
-        int opcode = this.memory.load(this.pc++) & 0x00FF;
-        this.operation = this.operations[opcode];
+        this.operation = this.operations[extendByte(this.memory.load(this.pc++))];
     }
 
     private State fetchImmediate() {
@@ -350,41 +403,42 @@ public class Cpu {
     }
 
     private State fetchPointer(State nextState) {
-        this.pointer = (short) (this.memory.load(this.pc++) & 0x00FF);
+        this.pointer = extendByte(this.memory.load(this.pc++));
         return nextState;
     }
 
     private State fetchPointerHigh() {
-        this.pointer = (short) (((this.memory.load(this.pc++) & 0x00FF) << 8) | (this.pointer & 0x00FF));
+        this.pointer = setHighByte(this.pointer, this.memory.load(this.pc++));
         return State.FETCH_ADDRESS;
     }
 
     private short nextPointer() {
         short currentPointer = this.pointer;
-        this.pointer = (short) ((this.pointer & 0xFF00) | ((this.pointer + 1) & 0x00FF));
+        this.pointer = add(this.pointer, 1);
         return currentPointer;
     }
 
     private State readPointerAddIndex() {
         this.memory.load(this.pointer);
-        this.pointer = (short) ((this.pointer & 0xFF00) | ((this.pointer + this.x) & 0x00FF));
+        this.pointer = this.setLowByte(this.pointer, this.pointer + x);
         return State.FETCH_ADDRESS;
     }
 
     private State fetchAddress(State nextState, ShortSupplier pointer) {
-        this.address = (short) (this.memory.load(pointer.get()) & 0x00FF);
+        this.address = extendByte(this.memory.load(pointer.get()));
         return nextState;
     }
 
     private State fetchAddressHigh(State nextState, ShortSupplier pointer) {
-        this.address = (short) (((this.memory.load(pointer.get()) & 0x00FF) << 8) | (this.address & 0x00FF));
+        this.address = setHighByte(this.address, this.memory.load(pointer.get()));
         return nextState;
     }
 
     private State fetchAddressHighAddIndex(ShortSupplier nextPointer, byte index) {
-        int addressLow = this.address + index;
-        this.address = (short) (((this.memory.load(nextPointer.get()) & 0x00FF) << 8) | (addressLow & 0x00FF));
-        return (addressLow & 0xFF00) == 0 ? State.READ_EFFECTIVE_ADDRESS : State.READ_EFFECTIVE_ADDRESS_FIX_HIGH;
+        short baseAddress = setHighByte(this.address, this.memory.load(nextPointer.get()));
+        this.address = add(baseAddress, index);
+        // Adding the index should result in a larger address. If smaller, the addition wrapped and needs to be fixed.
+        return baseAddress <= address ? State.READ_EFFECTIVE_ADDRESS : State.READ_EFFECTIVE_ADDRESS_FIX_HIGH;
     }
 
     private State fetchBogusInstruction(State nextState) {
@@ -406,7 +460,7 @@ public class Cpu {
 
     private State readEffectiveAddressAddIndex(State nextState, byte index) {
         this.data = this.memory.load(this.address);
-        this.address = (short) ((this.address & 0xFF00) | ((this.address + index) & 0x00FF));
+        this.address = this.add(this.address, index);
         return nextState;
     }
 
@@ -438,18 +492,24 @@ public class Cpu {
         return State.FETCH_OPCODE;
     }
 
-    private State readStackTop(State nextState) {
-        this.memory.load((short) (0x0100 + (this.s & 0x00FF)));
-        return nextState;
+    private short stackTopAddress() {
+        return (short) (0x0100 + (this.s & 0x00FF));
+    }
+
+    private State readStackTop() {
+        this.memory.load(stackTopAddress());
+        return State.PUSH_PCH;
     }
 
     private State pushPCH() {
-        this.memory.store((short) (0x0100 + (this.s-- & 0x00FF)), (byte) ((this.pc >> 8) & 0x00FF));
+        this.memory.store(stackTopAddress(), highByte(this.pc));
+        this.s--;
         return State.PUSH_PCL;
     }
 
     private State pushPCL() {
-        this.memory.store((short) (0x0100 + (this.s-- & 0x00FF)), (byte) (this.pc & 0x00FF));
+        this.memory.store(stackTopAddress(), lowByte(this.pc));
+        this.s--;
         return State.UPDATE_PC;
     }
 
@@ -460,18 +520,19 @@ public class Cpu {
     }
 
     private State incrementSP() {
-        this.memory.load((short) (0x100 + (this.s & 0x00FF)));
+        this.memory.load(stackTopAddress());
         this.s++;
         return State.POP_PCL;
     }
 
     private State popPCL() {
-        this.pc = (short) ((this.pc & 0xFF00) | (this.memory.load((short) (0x0100 + (this.s++ & 0x00FF))) & 0x00FF));
+        this.pc = setLowByte(this.pc, this.memory.load(stackTopAddress()));
+        this.s++;
         return State.POP_PCH;
     }
 
     private State popPCH() {
-        this.pc = (short) ((this.pc & 0x00FF) | ((this.memory.load((short) (0x0100 + (this.s & 0x00FF))) << 8) & 0xFF00));
+        this.pc = setHighByte(this.pc, this.memory.load(stackTopAddress()));
         return State.INCREMENT_PC;
     }
 
@@ -935,7 +996,7 @@ public class Cpu {
             return switch (state) {
                 case FETCH_OPCODE -> State.FETCH_ADDRESS;
                 case FETCH_ADDRESS -> cpu.fetchAddress(State.READ_STACK_TOP, cpu::nextPC);
-                case READ_STACK_TOP -> cpu.readStackTop(State.PUSH_PCH);
+                case READ_STACK_TOP -> cpu.readStackTop();
                 case PUSH_PCH -> cpu.pushPCH();
                 case PUSH_PCL -> cpu.pushPCL();
                 case UPDATE_PC -> cpu.fetchAddressHighAndUpdatePC();
